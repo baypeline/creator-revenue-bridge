@@ -2,7 +2,7 @@
 
 이 문서는 [프로젝트 기획과 연구 배경](../README.md)을 스마트 컨트랙트로 구현하기 위한 설계 초안이다. 서비스가 다루는 문제, RWA 구조, 가치평가, 법적·운영적 집행과 연구 가설은 루트 문서에서 관리하고 여기서는 온체인 책임과 구현 방법을 다룬다.
 
-> 상태: 구현 전 설계 초안. 함수명과 자료형은 ABI를 작성하면서 조정할 수 있다.
+> 상태: 펀딩과 기간별 정산·청구 MVP 구현 진행 중. 배포 전 ABI와 운영 권한은 변경될 수 있다.
 
 ## 1. 온체인 구현 범위
 
@@ -29,6 +29,19 @@
 - 외부 문서 해시가 가리키는 자료의 진실성 판단
 
 컨트랙트는 실제 투자자 몫이 입금된 이후의 지급 규칙을 강제한다. 입금 이전의 현금흐름 집행은 [루트 README의 Enforcement 설명](../README.md#enforcement--집행)에 따른 외부 책임이다.
+
+플랫폼이 코인지갑으로 직접 지급한다고 가정하지 않는다. YouTube 등에서 발생한 법정화폐 수익은 통제된 정산계좌로 받고, 백엔드가 입금과 정산 자료를 대조한 뒤 정산 주체가 투자자 몫의 USDC를 준비해 온체인 정산을 실행한다.
+
+```text
+플랫폼 법정화폐 지급
+→ 통제된 정산계좌 입금 확인
+→ 수익 자료 검증과 투자자 몫 산정
+→ 정산 주체의 USDC 준비
+→ settlePeriod 보고와 USDC 입금
+→ 투자자 claim
+```
+
+은행 입금 감지, 법정화폐의 USDC 전환과 트랜잭션 제출은 API와 운영 지갑을 이용해 자동화할 수 있다. 예를 들어 Google은 AdSense for YouTube 지급 수단으로 은행계좌를 받고, 기관용 Circle Mint는 연결된 은행계좌의 법정화폐를 USDC로 전환해 Base 등 지원 체인으로 전송하는 API를 제공한다. 다만 실제 제공자 사용은 국가, 법인 심사와 규제 요건에 달려 있으며, 플랫폼 지급계좌를 통제된 계좌로 지정하는 계약·수탁 구조와 은행 구간의 집행은 스마트 컨트랙트 밖의 책임이다. [YouTube 지급 수단](https://support.google.com/youtube/answer/1714397) · [Circle Mint](https://developers.circle.com/circle-mint) · [Circle 지원 체인](https://developers.circle.com/circle-mint/supported-chains-and-currencies)
 
 ## 2. MVP 구현 가정
 
@@ -60,7 +73,7 @@ flowchart LR
     Investor[투자자] -->|invest: 정산 토큰| Bridge[RevenueBridge]
     Bridge -->|mint / burn| Right[RevenueRightToken]
     Bridge -->|성공 상품 선지급| Creator[크리에이터 수령 주소]
-    Verifier[검증·정산 주체] -->|settlePeriod: 보고 + 투자자 몫| Bridge
+    Settler[검증·정산 주체] -->|settlePeriod: 보고 + 투자자 몫| Bridge
     Bridge -->|claim: 지분별 수익| Investor
 ```
 
@@ -76,7 +89,7 @@ ERC-1155를 사용하면 하나의 컨트랙트에서 여러 상품을 `tokenId 
 | --- | --- | --- |
 | `ADMIN` | 역할 관리, 신규 투자 허용 주소 관리, 신규 등록·투자 일시중지 | 기존 상품 조건 변경, 예치 자산 임의 인출, 지분 임의 조정 |
 | `ISSUER` | 검토된 조건으로 상품 등록 | 등록된 조건 덮어쓰기 |
-| `VERIFIER` | 종료된 기간의 수익 보고와 투자자 몫 입금 | 보고만으로 청구 가능 잔액 생성 |
+| `SETTLER` | 종료된 기간의 수익 보고와 투자자 몫 입금 | 보고만으로 청구 가능 잔액 생성 |
 | 크리에이터 | 성공 상품의 선지급금 청구 | 등록된 수령 주소 변경, 반복 청구 |
 | 투자자 | 허용 주소로 투자, 본인 환불·수익 청구 | 타인 몫 청구, 수익권 전송 |
 | 누구나 | 조건이 충족된 모집 확정과 상품 종료 | 상품 조건이나 정산 수치 지정 |
@@ -92,11 +105,11 @@ stateDiagram-v2
     [*] --> Funding: createOffering
     Funding --> Active: finalizeFunding / 목표액 충족
     Funding --> Failed: finalizeFunding / 마감 시 미달
-    Active --> Settling: revenueEnd 도달
+    Active --> Settling: 첫 기간 정산
     Settling --> Closed: 모든 기간 정산 완료
 ```
 
-`Settling`은 Active 상품의 현재 시각이 `revenueEnd`에 도달했을 때 조회 함수가 계산하는 상태로 구현할 수 있다. 블록 시간이 지났다고 트랜잭션이 자동 실행되지는 않는다. `Closed`는 종료 조건을 확인하는 별도 호출로 저장한다.
+`Settling`은 Active 상품의 첫 기간 정산이 등록되면 저장되는 상태다. 블록 시간이 지났다고 정산 트랜잭션이 자동 실행되지는 않는다. 종료된 다음 기간이 아직 등록되지 않았다면 조회 함수가 연체 여부를 계산하고, `Closed`는 모든 기간의 정산 완료를 확인하는 별도 호출로 저장한다.
 
 상품 등록 시 다음 값을 고정한다.
 
@@ -147,7 +160,7 @@ stateDiagram-v2
 - 종료된 구간만 순서대로 처리하고 `(offeringId, periodIndex)`를 한 번만 확정한다.
 - 수익이 0인 구간도 증빙 해시가 포함된 0 수익 보고로 확정한다.
 - 누적 적격 수익에 분배 비율을 적용해 이번에 추가할 투자자 몫을 계산한다.
-- VERIFIER로부터 계산된 금액을 `transferFrom`으로 받고 실제 잔액 증가를 확인한다.
+- SETTLER로부터 계산된 금액을 `transferFrom`으로 받고 실제 잔액 증가를 확인한다.
 - 보고 기록, 회계 갱신과 입금 중 하나라도 실패하면 트랜잭션 전체를 되돌린다.
 
 ```text

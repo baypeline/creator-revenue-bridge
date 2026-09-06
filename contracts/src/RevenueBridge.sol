@@ -4,13 +4,14 @@ pragma solidity 0.8.30;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {IRevenueBridge} from "./interfaces/IRevenueBridge.sol";
 import {RevenueRightToken} from "./RevenueRightToken.sol";
 
 /// @title RevenueBridge
-/// @notice Manages revenue-right offering registration and funding escrow.
+/// @notice Manages revenue-right funding, settlement, and investor claims.
 contract RevenueBridge is IRevenueBridge, AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -29,20 +30,32 @@ contract RevenueBridge is IRevenueBridge, AccessControl, ReentrancyGuard {
     error UnauthorizedCreator(address caller);
     error AdvanceAlreadyWithdrawn();
     error NothingToRefund();
+    error InvalidSettlementStatus(OfferingStatus actual);
+    error InvalidPeriodIndex(uint256 expected, uint256 actual);
+    error SettlementPeriodStillOpen(uint64 periodEnd);
+    error InvalidEvidenceHash();
+    error NothingToClaim();
+    error SettlementPeriodsRemaining(uint256 remainingPeriods);
 
     bytes32 public constant ISSUER_ROLE = keccak256("ISSUER_ROLE");
+    bytes32 public constant SETTLER_ROLE = keccak256("SETTLER_ROLE");
     uint256 public constant MAX_SETTLEMENT_PERIODS = 24;
+    uint256 private constant BPS_DENOMINATOR = 10_000;
 
     IERC20 public immutable SETTLEMENT_TOKEN;
     RevenueRightToken public immutable REVENUE_RIGHT_TOKEN;
 
     uint256 public nextOfferingId = 1;
     uint256 public totalEscrowLiability;
+    uint256 public totalRevenueLiability;
     bool public intakeIsPaused;
 
     mapping(uint256 offeringId => Offering offering) private _offerings;
     mapping(uint256 offeringId => uint64[] periodEnds) private _periodEnds;
+    mapping(uint256 offeringId => mapping(uint256 periodIndex => PeriodSettlement settlement)) private
+        _periodSettlements;
     mapping(uint256 offeringId => mapping(address investor => uint256 units)) public investedUnits;
+    mapping(uint256 offeringId => mapping(address investor => uint256 amount)) public claimed;
     mapping(address investor => bool allowed) public allowedInvestors;
 
     constructor(IERC20 settlementToken_, address admin, string memory tokenBaseUri) {
@@ -55,6 +68,7 @@ contract RevenueBridge is IRevenueBridge, AccessControl, ReentrancyGuard {
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ISSUER_ROLE, admin);
+        _grantRole(SETTLER_ROLE, admin);
     }
 
     function setInvestorAllowed(address investor, bool allowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -208,6 +222,95 @@ contract RevenueBridge is IRevenueBridge, AccessControl, ReentrancyGuard {
         _pushExact(msg.sender, amount);
     }
 
+    function settlePeriod(uint256 offeringId, uint256 periodIndex, uint256 grossRevenue, bytes32 evidenceHash)
+        external
+        nonReentrant
+        onlyRole(SETTLER_ROLE)
+    {
+        Offering storage offering = _getOffering(offeringId);
+        if (offering.status != OfferingStatus.Active && offering.status != OfferingStatus.Settling) {
+            revert InvalidSettlementStatus(offering.status);
+        }
+        if (periodIndex != offering.nextPeriodIndex) {
+            revert InvalidPeriodIndex(offering.nextPeriodIndex, periodIndex);
+        }
+        if (periodIndex >= _periodEnds[offeringId].length) {
+            revert InvalidPeriodIndex(offering.nextPeriodIndex, periodIndex);
+        }
+
+        uint64 periodEnd = _periodEnds[offeringId][periodIndex];
+        uint256 currentTimestamp = block.timestamp;
+        // Settlement periods intentionally use the L2 block timestamp.
+        // forge-lint: disable-next-line(block-timestamp)
+        if (currentTimestamp < periodEnd) {
+            revert SettlementPeriodStillOpen(periodEnd);
+        }
+        if (evidenceHash == bytes32(0)) {
+            revert InvalidEvidenceHash();
+        }
+
+        uint256 newGrossRevenueTotal = offering.grossRevenueTotal + grossRevenue;
+        uint256 newInvestorRevenueTotal = Math.mulDiv(newGrossRevenueTotal, offering.revenueShareBps, BPS_DENOMINATOR);
+        uint256 investorAmount = newInvestorRevenueTotal - offering.investorRevenueTotal;
+
+        offering.status = OfferingStatus.Settling;
+        offering.grossRevenueTotal = newGrossRevenueTotal;
+        offering.investorRevenueTotal = newInvestorRevenueTotal;
+        offering.nextPeriodIndex = periodIndex + 1;
+        totalRevenueLiability += investorAmount;
+        _periodSettlements[offeringId][periodIndex] = PeriodSettlement({
+            grossRevenue: grossRevenue,
+            investorAmount: investorAmount,
+            evidenceHash: evidenceHash,
+            settledAt: currentTimestamp
+        });
+
+        emit PeriodSettled(
+            offeringId,
+            periodIndex,
+            evidenceHash,
+            grossRevenue,
+            investorAmount,
+            newGrossRevenueTotal,
+            newInvestorRevenueTotal
+        );
+
+        if (investorAmount != 0) {
+            _pullExact(msg.sender, investorAmount);
+        }
+    }
+
+    function claim(uint256 offeringId) external nonReentrant {
+        Offering storage offering = _getOffering(offeringId);
+        uint256 amount = _claimable(offeringId, msg.sender, offering);
+        if (amount == 0) {
+            revert NothingToClaim();
+        }
+
+        claimed[offeringId][msg.sender] += amount;
+        offering.totalClaimed += amount;
+        totalRevenueLiability -= amount;
+
+        emit RevenueClaimed(offeringId, msg.sender, amount);
+
+        _pushExact(msg.sender, amount);
+    }
+
+    function closeOffering(uint256 offeringId) external {
+        Offering storage offering = _getOffering(offeringId);
+        if (offering.status != OfferingStatus.Settling) {
+            revert InvalidSettlementStatus(offering.status);
+        }
+
+        uint256 periodCount = _periodEnds[offeringId].length;
+        if (offering.nextPeriodIndex != periodCount) {
+            revert SettlementPeriodsRemaining(periodCount - offering.nextPeriodIndex);
+        }
+
+        offering.status = OfferingStatus.Closed;
+        emit OfferingClosed(offeringId);
+    }
+
     function statusOf(uint256 offeringId) external view returns (OfferingStatus) {
         return _getOffering(offeringId).status;
     }
@@ -229,16 +332,61 @@ contract RevenueBridge is IRevenueBridge, AccessControl, ReentrancyGuard {
         return investedUnits[offeringId][investor] * offering.unitPrice;
     }
 
+    function claimable(uint256 offeringId, address investor) external view returns (uint256) {
+        Offering storage offering = _getOffering(offeringId);
+        return _claimable(offeringId, investor, offering);
+    }
+
+    function nextUnsettledPeriod(uint256 offeringId)
+        external
+        view
+        returns (uint256 periodIndex, uint64 periodEnd, bool allSettled)
+    {
+        Offering storage offering = _getOffering(offeringId);
+        periodIndex = offering.nextPeriodIndex;
+        allSettled = periodIndex == _periodEnds[offeringId].length;
+        if (!allSettled) {
+            periodEnd = _periodEnds[offeringId][periodIndex];
+        }
+    }
+
+    function settlementOverdue(uint256 offeringId) external view returns (bool) {
+        Offering storage offering = _getOffering(offeringId);
+        if (offering.status != OfferingStatus.Active && offering.status != OfferingStatus.Settling) {
+            return false;
+        }
+        if (offering.nextPeriodIndex == _periodEnds[offeringId].length) {
+            return false;
+        }
+
+        uint256 currentTimestamp = block.timestamp;
+        // Settlement deadlines intentionally use the L2 block timestamp.
+        // forge-lint: disable-next-line(block-timestamp)
+        return currentTimestamp >= _periodEnds[offeringId][offering.nextPeriodIndex];
+    }
+
     function getPeriodEnds(uint256 offeringId) external view returns (uint64[] memory) {
         _getOffering(offeringId);
         return _periodEnds[offeringId];
+    }
+
+    function getPeriodSettlement(uint256 offeringId, uint256 periodIndex)
+        external
+        view
+        returns (PeriodSettlement memory)
+    {
+        Offering storage offering = _getOffering(offeringId);
+        if (periodIndex >= offering.nextPeriodIndex) {
+            revert InvalidPeriodIndex(offering.nextPeriodIndex, periodIndex);
+        }
+        return _periodSettlements[offeringId][periodIndex];
     }
 
     function _validateTerms(OfferingTerms calldata terms, uint64[] calldata periodEnds) private view {
         if (
             terms.creatorPayout == address(0) || terms.assetKey == bytes32(0) || terms.termsHash == bytes32(0)
                 || terms.valuationHash == bytes32(0) || terms.unitsForSale == 0 || terms.unitPrice == 0
-                || terms.revenueShareBps == 0 || terms.revenueShareBps > 10_000
+                || terms.revenueShareBps == 0 || terms.revenueShareBps > BPS_DENOMINATOR
         ) {
             revert InvalidOfferingTerms();
         }
@@ -274,6 +422,16 @@ contract RevenueBridge is IRevenueBridge, AccessControl, ReentrancyGuard {
         if (offering.status == OfferingStatus.None) {
             revert OfferingNotFound(offeringId);
         }
+    }
+
+    function _claimable(uint256 offeringId, address investor, Offering storage offering)
+        private
+        view
+        returns (uint256)
+    {
+        uint256 balance = REVENUE_RIGHT_TOKEN.balanceOf(investor, offeringId);
+        uint256 entitled = Math.mulDiv(offering.investorRevenueTotal, balance, offering.unitsForSale);
+        return entitled - claimed[offeringId][investor];
     }
 
     function _pullExact(address from, uint256 amount) private {
