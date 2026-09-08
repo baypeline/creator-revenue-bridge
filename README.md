@@ -206,6 +206,18 @@ docker compose -f compose.dev.yaml run --rm forge test
 docker compose -f compose.dev.yaml run --rm --entrypoint cast forge block-number --rpc-url http://anvil:8545
 ```
 
+로컬 컨트랙트를 Anvil에 배포하고 관리자 역할, 투자자 허용 목록과 모의 정산 토큰 잔액을 초기화하려면 다음 명령을 사용한다.
+
+```bash
+docker compose -f compose.dev.yaml up -d anvil
+docker compose -f compose.dev.yaml run --rm forge \
+  script script/DeployLocal.s.sol:DeployLocal \
+  --rpc-url http://anvil:8545 \
+  --broadcast
+```
+
+배포 스크립트는 체인 ID `31337`에서만 실행된다. 기본값은 Anvil 개발 계정 1번을 관리자, 2번을 발행자, 3번을 정산자, 4번을 투자자로 구성하고 투자자에게 1,000,000 mUSD를 지급한다. 배포가 끝나면 모의 정산 토큰, Bridge와 수익권 토큰 주소가 출력된다. `.env`에서 `ANVIL_DEPLOYER_PRIVATE_KEY`, 역할별 주소, 지급액과 `LOCAL_TOKEN_BASE_URI`를 변경할 수 있다. 이 계정들은 공개된 테스트 전용 자격 증명이므로 실제 자산이나 외부 네트워크에 사용하지 않는다.
+
 컨테이너와 개발용 볼륨을 함께 정리하려면 다음 명령을 사용한다.
 
 ```bash

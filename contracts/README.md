@@ -287,12 +287,14 @@ Bridge 실제 정산 토큰 잔액 >= 모든 상품 liability 합계
 4. [x] 모집·확정·선지급·환불 흐름과 단위 테스트 구현
 5. [x] 기간별 정산·누적 청구·종료 흐름 구현
 6. [x] 다중 상품 회계 invariant와 주요 공격 시나리오 테스트 추가
-7. [ ] Anvil에서 전체 시나리오 재현
+7. [ ] Anvil 배포 완료 후 전체 수명주기 시나리오 재현
 8. [ ] Base Sepolia 배포 스크립트와 백엔드 이벤트 연동
 
 상세 발견 사항과 잔여 위험은 [컨트랙트 보안 검증 기록](../docs/contract-security-review.md)에서 관리한다.
 
-현재 [foundry.toml](foundry.toml)은 Solidity `0.8.30`과 `src/`, `test/`, `script/` 경로를 지정한다. OpenZeppelin과 forge-std는 구현을 시작할 때 호환 버전과 commit을 고정해 설치한다.
+로컬 Anvil 배포와 초기 역할·잔액 구성은 [DeployLocal.s.sol](script/DeployLocal.s.sol)에서 수행한다. 실제 배포 바이트코드와 초기 상태 검증까지 완료했으며, 모집부터 종료 후 청구까지 이어지는 전체 RPC 시나리오는 후속 단계로 남아 있다.
+
+현재 [foundry.toml](foundry.toml)은 Solidity `0.8.30`과 `src/`, `test/`, `script/` 경로를 지정한다. OpenZeppelin과 forge-std는 호환 버전과 commit을 고정해 설치한다.
 
 ```bash
 cd contracts
