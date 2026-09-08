@@ -170,12 +170,15 @@ flowchart LR
 creator-revenue-bridge/
 ├── frontend/   # 사용자 화면과 지갑 연결
 ├── backend/    # 플랫폼 데이터, 평가, API와 체인 이벤트 처리
-└── contracts/  # 수익권, 모집, 정산과 분배 규칙
+├── contracts/  # 수익권, 모집, 정산과 분배 규칙
+└── docs/       # 개발 이슈, 보안 검증, 법률·리서치 기록
 ```
 
 - `frontend`: Next.js App Router + TypeScript
 - `backend`: Spring Boot + Java 21 + Gradle
 - `contracts`: Solidity + Foundry, Ethereum L2 배포 대상
+
+구현 과정에서 확인한 문제와 검증 기록은 [개발 기록](docs/README.md)에서 관리한다.
 
 ## 개발 환경 실행
 

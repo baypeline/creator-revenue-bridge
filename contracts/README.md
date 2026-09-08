@@ -2,7 +2,7 @@
 
 이 문서는 [프로젝트 기획과 연구 배경](../README.md)을 스마트 컨트랙트로 구현하기 위한 설계 초안이다. 서비스가 다루는 문제, RWA 구조, 가치평가, 법적·운영적 집행과 연구 가설은 루트 문서에서 관리하고 여기서는 온체인 책임과 구현 방법을 다룬다.
 
-> 상태: 펀딩과 기간별 정산·청구 MVP 구현 진행 중. 배포 전 ABI와 운영 권한은 변경될 수 있다.
+> 상태: 펀딩과 기간별 정산·청구 MVP 핵심 구현 완료, 보안 검증 진행 중. 배포 전 ABI와 운영 권한은 변경될 수 있다.
 
 ## 1. 온체인 구현 범위
 
@@ -281,14 +281,16 @@ Bridge 실제 정산 토큰 잔액 >= 모든 상품 liability 합계
 
 ## 14. 구현 순서
 
-1. 루트 README의 MVP 상품 조건을 팀에서 검토한다.
-2. `OfferingTerms`, 상태 enum, 사용자 정의 오류와 이벤트를 인터페이스로 정의한다.
-3. `MockSettlementToken`과 전송 제한 `RevenueRightToken`을 구현한다.
-4. 모집·확정·선지급·환불 흐름과 단위 테스트를 구현한다.
-5. 기간별 정산·누적 청구·종료 흐름을 구현한다.
-6. 회계 fuzz 및 invariant 테스트를 추가한다.
-7. Anvil에서 전체 시나리오를 재현한다.
-8. Base Sepolia 배포 스크립트와 백엔드 이벤트 연동을 추가한다.
+1. [x] 루트 README의 MVP 상품 조건 정의
+2. [x] `OfferingTerms`, 상태 enum, 사용자 정의 오류와 이벤트 정의
+3. [x] `MockSettlementToken`과 전송 제한 `RevenueRightToken` 구현
+4. [x] 모집·확정·선지급·환불 흐름과 단위 테스트 구현
+5. [x] 기간별 정산·누적 청구·종료 흐름 구현
+6. [x] 다중 상품 회계 invariant와 주요 공격 시나리오 테스트 추가
+7. [ ] Anvil에서 전체 시나리오 재현
+8. [ ] Base Sepolia 배포 스크립트와 백엔드 이벤트 연동
+
+상세 발견 사항과 잔여 위험은 [컨트랙트 보안 검증 기록](../docs/contract-security-review.md)에서 관리한다.
 
 현재 [foundry.toml](foundry.toml)은 Solidity `0.8.30`과 `src/`, `test/`, `script/` 경로를 지정한다. OpenZeppelin과 forge-std는 구현을 시작할 때 호환 버전과 commit을 고정해 설치한다.
 
@@ -299,7 +301,7 @@ forge build
 forge test
 ```
 
-현재 소스와 테스트가 없으므로 빈 프로젝트의 build/test 성공은 상품 동작 검증을 의미하지 않는다. Foundry 설치 방법은 [공식 설치 문서](https://getfoundry.sh/introduction/installation/)를 참고한다.
+Foundry 설치 방법은 [공식 설치 문서](https://getfoundry.sh/introduction/installation/)를 참고한다.
 
 ## 15. 후속 구현 과제
 
