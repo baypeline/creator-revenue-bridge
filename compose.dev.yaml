@@ -49,7 +49,7 @@ services:
       timeout: 2s
       retries: 15
 
-  foundry:
+  forge:
     image: ghcr.io/foundry-rs/foundry:v1.8.1
     user: "0:0"
     working_dir: /workspace/contracts
@@ -59,8 +59,8 @@ services:
       RPC_URL: http://anvil:8545
     volumes:
       - ./contracts:/workspace/contracts
-      - foundry_cache:/workspace/contracts/cache
-      - foundry_out:/workspace/contracts/out
+      - forge_cache:/workspace/contracts/cache
+      - forge_out:/workspace/contracts/out
     depends_on:
       anvil:
         condition: service_healthy
@@ -69,5 +69,5 @@ volumes:
   frontend_node_modules:
   frontend_next:
   backend_gradle:
-  foundry_cache:
-  foundry_out:
+  forge_cache:
+  forge_out:

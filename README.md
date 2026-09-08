@@ -199,11 +199,11 @@ docker compose -f compose.dev.yaml up --build
 | Backend | `http://localhost:8080` | Spring Boot 개발 서버 |
 | Anvil RPC | `http://localhost:8545` | 체인 ID `31337`인 로컬 Ethereum RPC |
 
-`foundry` 서비스는 Anvil이 준비된 뒤 컨트랙트 테스트를 한 번 실행한다. 테스트나 Foundry 명령을 다시 실행하려면 다음 명령을 사용한다.
+`forge` 서비스는 Anvil이 준비된 뒤 컨트랙트 테스트를 한 번 실행한다. 테스트나 Foundry 명령을 다시 실행하려면 다음 명령을 사용한다.
 
 ```bash
-docker compose -f compose.dev.yaml run --rm foundry test
-docker compose -f compose.dev.yaml run --rm --entrypoint cast foundry block-number --rpc-url http://anvil:8545
+docker compose -f compose.dev.yaml run --rm forge test
+docker compose -f compose.dev.yaml run --rm --entrypoint cast forge block-number --rpc-url http://anvil:8545
 ```
 
 컨테이너와 개발용 볼륨을 함께 정리하려면 다음 명령을 사용한다.
