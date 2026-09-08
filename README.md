@@ -179,36 +179,41 @@ creator-revenue-bridge/
 
 ## 개발 환경 실행
 
-### Frontend
+### Docker Compose
+
+Docker가 설치되어 있으면 Node.js, Java와 Foundry를 호스트에 각각 설치하지 않고 전체 개발 환경을 실행할 수 있다. 처음 저장소를 받은 뒤 컨트랙트 의존성을 초기화하고 개발용 Compose를 실행한다.
 
 ```bash
-cd frontend
-npm install
-npm run dev
+git submodule update --init --recursive
+docker compose -f compose.dev.yaml up --build
 ```
 
-### Backend
+개발 환경은 다음 주소를 사용한다.
 
-Windows:
+| 서비스 | 주소 | 용도 |
+| --- | --- | --- |
+| Frontend | `http://localhost:3000` | Next.js 개발 서버와 소스 변경 반영 |
+| Backend | `http://localhost:8080` | Spring Boot 개발 서버 |
+| Anvil RPC | `http://localhost:8545` | 체인 ID `31337`인 로컬 Ethereum RPC |
 
-```powershell
-cd backend
-.\gradlew.bat bootRun
-```
-
-macOS/Linux:
+`foundry` 서비스는 Anvil이 준비된 뒤 컨트랙트 테스트를 한 번 실행한다. 테스트나 Foundry 명령을 다시 실행하려면 다음 명령을 사용한다.
 
 ```bash
-cd backend
-./gradlew bootRun
+docker compose -f compose.dev.yaml run --rm foundry test
+docker compose -f compose.dev.yaml run --rm --entrypoint cast foundry block-number --rpc-url http://anvil:8545
 ```
 
-### Contracts
-
-컨트랙트 구현 방침과 개발 순서는 [contracts/README.md](contracts/README.md)를 먼저 확인한다.
+컨테이너와 개발용 볼륨을 함께 정리하려면 다음 명령을 사용한다.
 
 ```bash
-cd contracts
-forge build
-forge test
+docker compose -f compose.dev.yaml down --volumes
 ```
+
+운영용 Compose는 소스 마운트와 로컬 체인을 포함하지 않고 빌드된 Frontend·Backend 런타임만 실행한다. `.env.example`을 복사해 실제 RPC 주소 등 운영 환경 값을 설정한 뒤 실행한다.
+
+```bash
+cp .env.example .env
+docker compose -f compose.prod.yaml up --build -d
+```
+
+`NEXT_PUBLIC_API_URL`은 Frontend 이미지 빌드 시 브라우저가 접근할 Backend 주소로 포함된다. 운영 환경에서는 공개 주소로 지정해야 한다. `WEB3_RPC_URL`은 운영용 Compose 실행 전에 반드시 설정해야 한다.
