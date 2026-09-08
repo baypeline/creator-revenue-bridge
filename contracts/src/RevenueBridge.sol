@@ -181,7 +181,10 @@ contract RevenueBridge is IRevenueBridge, AccessControl, ReentrancyGuard {
 
     function withdrawAdvance(uint256 offeringId) external nonReentrant {
         Offering storage offering = _getOffering(offeringId);
-        if (offering.status != OfferingStatus.Active) {
+        if (
+            offering.status != OfferingStatus.Active && offering.status != OfferingStatus.Settling
+                && offering.status != OfferingStatus.Closed
+        ) {
             revert InvalidOfferingStatus(offering.status);
         }
         if (msg.sender != offering.creatorPayout) {

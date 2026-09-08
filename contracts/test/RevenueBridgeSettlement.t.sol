@@ -250,7 +250,37 @@ contract RevenueBridgeSettlementTest is Test {
         assertEq(bridge.claimed(offeringId, investor), 160e6);
     }
 
+    function testCreatorCanWithdrawAdvanceAfterOfferingCloses() public {
+        uint256 offeringId = _createActiveOfferingWithoutAdvanceWithdrawal();
+
+        vm.warp(FIRST_PERIOD_END);
+        _settle(offeringId, 0, 1_000e6, FIRST_EVIDENCE_HASH);
+        vm.warp(REVENUE_END);
+        _settle(offeringId, 1, 1_000e6, SECOND_EVIDENCE_HASH);
+        bridge.closeOffering(offeringId);
+
+        assertEq(uint256(bridge.statusOf(offeringId)), uint256(IRevenueBridge.OfferingStatus.Closed));
+        assertFalse(bridge.getOffering(offeringId).advanceWithdrawn);
+
+        uint256 creatorBalanceBefore = settlementToken.balanceOf(creator);
+        vm.prank(creator);
+        bridge.withdrawAdvance(offeringId);
+
+        assertEq(settlementToken.balanceOf(creator) - creatorBalanceBefore, UNITS_FOR_SALE * UNIT_PRICE);
+        assertTrue(bridge.getOffering(offeringId).advanceWithdrawn);
+        assertEq(bridge.totalEscrowLiability(), 0);
+        assertEq(bridge.totalRevenueLiability(), 400e6);
+        assertEq(settlementToken.balanceOf(address(bridge)), 400e6);
+    }
+
     function _createActiveOffering() internal returns (uint256 offeringId) {
+        offeringId = _createActiveOfferingWithoutAdvanceWithdrawal();
+
+        vm.prank(creator);
+        bridge.withdrawAdvance(offeringId);
+    }
+
+    function _createActiveOfferingWithoutAdvanceWithdrawal() internal returns (uint256 offeringId) {
         IRevenueBridge.OfferingTerms memory terms = IRevenueBridge.OfferingTerms({
             creatorPayout: creator,
             assetKey: keccak256("youtube:creator:2027"),
@@ -273,9 +303,6 @@ contract RevenueBridgeSettlementTest is Test {
         vm.prank(secondInvestor);
         bridge.invest(offeringId, 60);
         bridge.finalizeFunding(offeringId);
-
-        vm.prank(creator);
-        bridge.withdrawAdvance(offeringId);
     }
 
     function _settle(uint256 offeringId, uint256 periodIndex, uint256 grossRevenue, bytes32 evidenceHash) internal {
