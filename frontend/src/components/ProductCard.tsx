@@ -3,6 +3,7 @@
 
 import { useProduct } from '../hooks/useProduct';
 import { Calendar, TrendingUp, AlertCircle } from 'lucide-react';
+import { InvestForm } from './InvestForm';
 
 export function ProductCard({ productId }: { productId: string }) {
   const { product, isLoading } = useProduct(productId);
@@ -77,10 +78,8 @@ export function ProductCard({ productId }: { productId: string }) {
           </div>
         </div>
 
-        {/* 투자 버튼 (현재 껍데기) */}
-        <button className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
-          투자하기 (Approve & Invest)
-        </button>
+        {/* 투자 폼 (Approve 로직 연동) */}
+        <InvestForm productId={productId} />
 
         {/* 위험 고지 */}
         <div className="mt-5 flex items-start gap-2 text-xs text-gray-400 bg-gray-50/50 p-3 rounded-lg">

@@ -16,7 +16,7 @@ export function WalletConnect() {
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
 
-  const { data: balanceData } = useReadContract({
+  const { data: balanceData, refetch } = useReadContract({
     address: CONTRACT_ADDRESSES.MUSD as `0x${string}`,
     abi: parseAbi(['function balanceOf(address) view returns (uint256)']),
     functionName: 'balanceOf',
@@ -26,8 +26,10 @@ export function WalletConnect() {
     }
   });
 
+  const [isFunding, setIsFunding] = useState(false);
+
   const formattedBalance = balanceData !== undefined 
-    ? Number(formatUnits(balanceData as bigint, 18)).toFixed(2) 
+    ? Number(formatUnits(balanceData as bigint, 6)).toFixed(2) 
     : '0.00';
 
   const handleConnect = () => {
@@ -45,6 +47,25 @@ export function WalletConnect() {
     );
   };
 
+  const handleFaucet = async () => {
+    if (!address) return;
+    setIsFunding(true);
+    try {
+      const res = await fetch('/api/faucet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      alert('테스트용 ETH와 mUSD 충전이 완료되었습니다!');
+      refetch();
+    } catch (e) {
+      alert('충전 실패: ' + e);
+    } finally {
+      setIsFunding(false);
+    }
+  };
+
   if (!mounted) return <div className="w-32 h-10 bg-gray-200 animate-pulse rounded-lg"></div>;
 
   if (isConnected) {
@@ -58,6 +79,13 @@ export function WalletConnect() {
             Switch to Anvil
           </button>
         )}
+        <button 
+          onClick={handleFaucet}
+          disabled={isFunding}
+          className="text-xs font-bold bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1.5 rounded transition-colors shadow-sm disabled:opacity-50"
+        >
+          {isFunding ? '충전 중...' : '💰 테스트 돈 받기'}
+        </button>
         <div className="flex flex-col items-end">
           <span className="text-sm font-semibold text-gray-900">
             {address?.slice(0, 6)}...{address?.slice(-4)}
