@@ -8,7 +8,7 @@ import { CONTRACT_ADDRESSES } from '../constants/contracts';
 
 export function WalletConnect() {
   const [mounted, setMounted] = useState(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
 
   const { address, isConnected, chainId } = useAccount();

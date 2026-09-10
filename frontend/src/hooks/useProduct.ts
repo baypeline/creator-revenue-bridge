@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ProductOffchainData, ProductOnchainData, Product } from '../types/product';
+import { Product } from '../types/product';
 
 // 백엔드가 완성되면 이 함수들을 실제 API Fetch 로직으로 교체하면 됩니다.
 
