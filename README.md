@@ -218,6 +218,14 @@ docker compose -f compose.dev.yaml run --rm --entrypoint cast forge block-number
 
 이 명령은 `contracts/deployments/31337.json`을 생성하고 같은 배포 정보를 `frontend/src/generated/contracts`와 `backend/src/main/resources/contracts/generated`에 복사한다. `RevenueBridge`, `RevenueRightToken`, `MockSettlementToken` ABI와 상품 상태·오류 메시지 매핑도 두 애플리케이션 디렉터리에 함께 생성한다. 로컬 생성 파일은 Git에 커밋하지 않는다.
 
+역할별 EOA가 실제 RPC 트랜잭션으로 투자부터 정산과 청구까지 수행하는 전체 정상 흐름은 다음 명령으로 검증한다.
+
+```bash
+./scripts/run-local-happy-path.sh
+```
+
+이 명령은 새로운 데모 컨트랙트 세트를 배포하고 투자 승인, 전체 수량 투자, 모집 확정, 크리에이터 선지급, 세 기간 정산, 상품 종료와 종료 후 투자자 수익 청구를 순서대로 실행한다. 마지막에는 수익권·mUSD 잔액과 Bridge의 보관 의무 금액을 조회해 예상값과 다르면 실패한다. 실행 후 manifest는 종료된 검증 상품을 가리키므로 프론트엔드 개발을 다시 시작할 때는 `./scripts/deploy-local.sh`를 한 번 더 실행한다.
+
 컨테이너와 개발용 볼륨을 함께 정리하려면 다음 명령을 사용한다.
 
 ```bash

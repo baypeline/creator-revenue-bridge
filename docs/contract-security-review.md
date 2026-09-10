@@ -7,11 +7,12 @@
 
 ## 검증 현황
 
-- 전체 테스트: 38개 통과
+- 전체 테스트: 40개 통과
 - 회계 invariant: 128 runs, 8,192 calls, revert 0회
 - `RevenueBridge` 커버리지: 라인 90.87%, 구문 93.38%, 분기 55.00%, 함수 100%
 - 검증 명령: `forge clean && forge test --summary`, `forge coverage --report summary`
 - 로컬 배포: Docker Anvil 체인 ID 31337에서 실제 배포 및 역할·허용 목록·초기 잔액 조회 확인
+- RPC 정상 흐름: 역할별 EOA로 투자·확정·선지급·3회 정산·종료·청구 후 부채와 잔액 검증
 
 ## 현재 보안 모델
 
@@ -90,7 +91,6 @@ totalClaimed <= investorRevenueTotal
 - 허용 목록 제거와 일시중지 이후 기존 투자자의 환불·청구 가능 여부
 - 관리자·발행자·정산자의 권한 분리와 역할 변경 경계
 - 최대 정산 기간 수와 큰 금액을 사용한 가스 및 산술 경계
-- Anvil에서 배포한 컨트랙트로 모집·정산·청구 전체 수명주기 재현
 - Base Sepolia 배포 전 정적 분석과 독립 보안 검토
 
 ## 운영상 잔여 위험
