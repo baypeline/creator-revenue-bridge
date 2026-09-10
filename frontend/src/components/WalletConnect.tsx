@@ -1,26 +1,34 @@
 'use client';
 
-import { useAccount, useConnect, useDisconnect, useBalance, useSwitchChain } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useReadContract, useSwitchChain } from 'wagmi';
 import { Wallet } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { formatUnits, parseAbi } from 'viem';
 import { CONTRACT_ADDRESSES } from '../constants/contracts';
 
 export function WalletConnect() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setMounted(true); }, []);
 
   const { address, isConnected, chainId } = useAccount();
   const { connectors, connect, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
 
-  const { data: balanceData } = useBalance({
-    address,
-    token: CONTRACT_ADDRESSES.MUSD as `0x${string}`,
+  const { data: balanceData } = useReadContract({
+    address: CONTRACT_ADDRESSES.MUSD as `0x${string}`,
+    abi: parseAbi(['function balanceOf(address) view returns (uint256)']),
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
     query: {
-      enabled: isConnected,
+      enabled: isConnected && !!address,
     }
   });
+
+  const formattedBalance = balanceData !== undefined 
+    ? Number(formatUnits(balanceData as bigint, 18)).toFixed(2) 
+    : '0.00';
 
   const handleConnect = () => {
     if (!connectors || connectors.length === 0) {
@@ -55,7 +63,7 @@ export function WalletConnect() {
             {address?.slice(0, 6)}...{address?.slice(-4)}
           </span>
           <span className="text-xs text-gray-500">
-            {balanceData?.formatted ? `${Number(balanceData.formatted).toFixed(2)} mUSD` : '0.00 mUSD'}
+            {formattedBalance} mUSD
           </span>
         </div>
         <button
