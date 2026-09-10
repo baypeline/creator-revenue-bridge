@@ -209,16 +209,14 @@ docker compose -f compose.dev.yaml run --rm --entrypoint cast forge block-number
 로컬 컨트랙트를 Anvil에 배포하고 역할, 모의 정산 토큰 잔액과 투자 가능한 데모 상품을 초기화하려면 다음 명령을 사용한다.
 
 ```bash
-docker compose -f compose.dev.yaml up -d anvil
-docker compose -f compose.dev.yaml run --rm forge \
-  script script/DeployLocal.s.sol:DeployLocal \
-  --rpc-url http://anvil:8545 \
-  --broadcast
+./scripts/deploy-local.sh
 ```
 
 배포 스크립트는 체인 ID `31337`에서만 실행된다. 기본값은 Anvil 개발 계정 1번을 관리자, 2번을 발행자, 3번을 정산자, 4번을 투자자, 5번을 크리에이터로 구성한다. 투자자와 정산자에게 각각 1,000,000 mUSD를 지급하고, 수익권 100개를 개당 100 mUSD에 모집하는 `offeringId=1` 상품을 생성한다. 투자자 배분율은 20%이며 수익 기간은 세 구간으로 나뉜다.
 
 배포가 끝나면 모의 정산 토큰, Bridge, 수익권 토큰 주소와 데모 상품의 ID·금액·일정이 출력된다. `.env`에서 `ANVIL_DEPLOYER_PRIVATE_KEY`, 역할별 주소, 지급액과 `LOCAL_TOKEN_BASE_URI`를 변경할 수 있다. 이 계정들은 공개된 테스트 전용 자격 증명이므로 실제 자산이나 외부 네트워크에 사용하지 않는다.
+
+이 명령은 `contracts/deployments/31337.json`을 생성하고 같은 배포 정보를 `frontend/src/generated/contracts`와 `backend/src/main/resources/contracts/generated`에 복사한다. `RevenueBridge`, `RevenueRightToken`, `MockSettlementToken` ABI도 두 애플리케이션 디렉터리에 함께 생성한다. 로컬 생성 파일은 Git에 커밋하지 않는다.
 
 컨테이너와 개발용 볼륨을 함께 정리하려면 다음 명령을 사용한다.
 

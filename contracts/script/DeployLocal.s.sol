@@ -33,6 +33,7 @@ contract DeployLocal is Script {
         uint256 investorBalance;
         uint256 settlerBalance;
         string tokenBaseUri;
+        string deploymentPath;
     }
 
     struct DemoOffering {
@@ -85,6 +86,7 @@ contract DeployLocal is Script {
 
         vm.stopBroadcast();
 
+        _writeDeploymentManifest(settlementToken, bridge, rightToken, config, demo);
         _logDeployment(settlementToken, bridge, rightToken, config, demo);
     }
 
@@ -99,6 +101,8 @@ contract DeployLocal is Script {
         config.settlerBalance = vm.envOr("LOCAL_SETTLER_BALANCE", DEFAULT_ACTOR_BALANCE);
         config.tokenBaseUri =
             vm.envOr("LOCAL_TOKEN_BASE_URI", string("http://localhost:3000/api/revenue-rights/{id}.json"));
+        config.deploymentPath =
+            vm.envOr("LOCAL_DEPLOYMENT_PATH", string.concat(vm.projectRoot(), "/deployments/31337.json"));
 
         if (
             config.deployer == address(0) || config.issuer == address(0) || config.settler == address(0)
@@ -133,6 +137,41 @@ contract DeployLocal is Script {
         demo.id = bridge.createOffering(demoTerms, periodEnds);
     }
 
+    function _writeDeploymentManifest(
+        MockSettlementToken settlementToken,
+        RevenueBridge bridge,
+        RevenueRightToken rightToken,
+        LocalConfig memory config,
+        DemoOffering memory demo
+    ) private {
+        string memory contractsJson = vm.serializeAddress("contracts", "settlementToken", address(settlementToken));
+        vm.serializeAddress("contracts", "revenueBridge", address(bridge));
+        contractsJson = vm.serializeAddress("contracts", "revenueRightToken", address(rightToken));
+
+        string memory accountsJson = vm.serializeAddress("accounts", "admin", config.deployer);
+        vm.serializeAddress("accounts", "issuer", config.issuer);
+        vm.serializeAddress("accounts", "settler", config.settler);
+        vm.serializeAddress("accounts", "creator", config.creator);
+        accountsJson = vm.serializeAddress("accounts", "investor", config.investor);
+
+        string memory demoJson = vm.serializeUint("demo", "offeringId", demo.id);
+        vm.serializeUint("demo", "unitsForSale", DEMO_UNITS_FOR_SALE);
+        vm.serializeUint("demo", "unitPrice", DEMO_UNIT_PRICE);
+        vm.serializeUint("demo", "targetRaise", DEMO_UNITS_FOR_SALE * DEMO_UNIT_PRICE);
+        vm.serializeUint("demo", "revenueShareBps", DEMO_REVENUE_SHARE_BPS);
+        vm.serializeUint("demo", "fundingDeadline", demo.fundingDeadline);
+        vm.serializeUint("demo", "revenueStart", demo.revenueStart);
+        demoJson = vm.serializeUint("demo", "revenueEnd", demo.revenueEnd);
+
+        string memory deploymentJson = vm.serializeUint("deployment", "chainId", LOCAL_CHAIN_ID);
+        vm.serializeString("deployment", "network", "anvil");
+        vm.serializeString("deployment", "contracts", contractsJson);
+        vm.serializeString("deployment", "accounts", accountsJson);
+        deploymentJson = vm.serializeString("deployment", "demo", demoJson);
+
+        vm.writeJson(deploymentJson, config.deploymentPath);
+    }
+
     function _logDeployment(
         MockSettlementToken settlementToken,
         RevenueBridge bridge,
@@ -157,5 +196,6 @@ contract DeployLocal is Script {
         console2.log("Demo Funding Deadline", demo.fundingDeadline);
         console2.log("Demo Revenue Start", demo.revenueStart);
         console2.log("Demo Revenue End", demo.revenueEnd);
+        console2.log("Deployment Manifest", config.deploymentPath);
     }
 }

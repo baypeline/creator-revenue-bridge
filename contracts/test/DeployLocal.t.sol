@@ -29,6 +29,7 @@ contract DeployLocalTest is Test {
         vm.setEnv("LOCAL_INVESTOR_BALANCE", vm.toString(INVESTOR_BALANCE));
         vm.setEnv("LOCAL_SETTLER_BALANCE", vm.toString(SETTLER_BALANCE));
         vm.setEnv("LOCAL_TOKEN_BASE_URI", "http://localhost/token/{id}.json");
+        vm.setEnv("LOCAL_DEPLOYMENT_PATH", string.concat(vm.projectRoot(), "/cache/test-deployment.json"));
     }
 
     function testDeploysAndSeedsLocalEnvironment() public {
@@ -72,6 +73,16 @@ contract DeployLocalTest is Test {
         assertEq(periodEnds[0], offering.revenueStart + 30 days);
         assertEq(periodEnds[1], offering.revenueStart + 60 days);
         assertEq(periodEnds[2], offering.revenueEnd);
+
+        string memory deploymentJson = vm.readFile(string.concat(vm.projectRoot(), "/cache/test-deployment.json"));
+        assertEq(vm.parseJsonUint(deploymentJson, ".chainId"), 31_337);
+        assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.settlementToken"), address(settlementToken));
+        assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.revenueBridge"), address(bridge));
+        assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.revenueRightToken"), address(rightToken));
+        assertEq(vm.parseJsonAddress(deploymentJson, ".accounts.creator"), creator);
+        assertEq(vm.parseJsonAddress(deploymentJson, ".accounts.investor"), investor);
+        assertEq(vm.parseJsonUint(deploymentJson, ".demo.offeringId"), demoOfferingId);
+        assertEq(vm.parseJsonUint(deploymentJson, ".demo.targetRaise"), 10_000e6);
     }
 
     function testRejectsNonLocalChain() public {
