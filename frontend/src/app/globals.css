@@ -1,14 +1,10 @@
 :root {
-  color-scheme: light dark;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-* {
-  box-sizing: border-box;
+  /* Cleaned globals.css to prevent Next.js CSS parser errors */
 }
 
 body {
   margin: 0;
+  font-family: sans-serif;
 }
 
 main {
