@@ -6,6 +6,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_dir=$(CDPATH= cd -- "$script_dir/.." && pwd)
 compose_file="$repo_dir/compose.dev.yaml"
 deployment_source="$repo_dir/contracts/deployments/31337.json"
+client_metadata_source="$repo_dir/contracts/client/RevenueBridge.client.json"
 frontend_target="$repo_dir/frontend/src/generated/contracts"
 backend_target="$repo_dir/backend/src/main/resources/contracts/generated"
 temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/creator-revenue-bridge-contracts.XXXXXX")
@@ -45,6 +46,8 @@ done
 mkdir -p "$frontend_target" "$backend_target"
 cp "$deployment_source" "$frontend_target/deployment.json"
 cp "$deployment_source" "$backend_target/deployment.json"
+cp "$client_metadata_source" "$frontend_target/RevenueBridge.client.json"
+cp "$client_metadata_source" "$backend_target/RevenueBridge.client.json"
 cp "$temp_dir"/*.abi.json "$frontend_target/"
 cp "$temp_dir"/*.abi.json "$backend_target/"
 
