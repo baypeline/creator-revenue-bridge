@@ -292,7 +292,7 @@ Bridge 실제 정산 토큰 잔액 >= 모든 상품 liability 합계
 
 상세 발견 사항과 잔여 위험은 [컨트랙트 보안 검증 기록](../docs/contract-security-review.md)에서 관리한다.
 
-로컬 Anvil 배포와 초기 역할·잔액 구성은 [DeployLocal.s.sol](script/DeployLocal.s.sol)에서 수행한다. 실제 배포 바이트코드와 초기 상태 검증까지 완료했으며, 모집부터 종료 후 청구까지 이어지는 전체 RPC 시나리오는 후속 단계로 남아 있다.
+로컬 Anvil 배포와 역할·잔액·데모 상품 구성은 [DeployLocal.s.sol](script/DeployLocal.s.sol)에서 수행한다. 실제 배포 바이트코드와 초기 상태 검증까지 완료했으며, 모집부터 종료 후 청구까지 이어지는 전체 RPC 시나리오는 후속 단계로 남아 있다.
 
 현재 [foundry.toml](foundry.toml)은 Solidity `0.8.30`과 `src/`, `test/`, `script/` 경로를 지정한다. OpenZeppelin과 forge-std는 호환 버전과 commit을 고정해 설치한다.
 
