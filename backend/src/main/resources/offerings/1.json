@@ -1,0 +1,32 @@
+{
+  "offeringId": 1,
+  "status": "Funding",
+  "assetKey": "local-demo-youtube-revenue",
+  "creator": {
+    "name": "데모 크리에이터",
+    "platform": "YouTube",
+    "handle": "@demo-creator",
+    "imageUrl": "https://unavatar.io/youtube/@demo-creator"
+  },
+  "title": "유튜브 광고 수익 선지급 수익권 (로컬 데모)",
+  "description": "최근 12개월 유튜브 광고 수익을 기반으로 향후 3개 정산 구간 동안 발생하는 적격 수익의 20%에 대한 청구권을 발행하는 로컬 데모 상품입니다.",
+  "settlementCurrency": {
+    "symbol": "mUSD",
+    "decimals": 6
+  },
+  "terms": {
+    "unitsForSale": 100,
+    "unitPriceRaw": "100000000",
+    "revenueShareBps": 2000,
+    "fundingDeadline": "2026-09-19T00:00:00Z",
+    "revenueStart": "2026-09-20T00:00:00Z",
+    "revenueEnd": "2026-12-19T00:00:00Z"
+  },
+  "settlementPlan": {
+    "periods": [
+      { "periodIndex": 0, "periodStart": "2026-09-20T00:00:00Z", "periodEnd": "2026-10-20T00:00:00Z" },
+      { "periodIndex": 1, "periodStart": "2026-10-20T00:00:00Z", "periodEnd": "2026-11-19T00:00:00Z" },
+      { "periodIndex": 2, "periodStart": "2026-11-19T00:00:00Z", "periodEnd": "2026-12-19T00:00:00Z" }
+    ]
+  }
+}
