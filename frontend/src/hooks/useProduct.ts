@@ -28,12 +28,12 @@ const MOCK_PRODUCTS: OfferingResponse[] = [
   // 더 많은 목업 데이터 생략...
 ];
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE = '/backend-api';
 
 const fetchProducts = async (): Promise<OfferingResponse[]> => {
   try {
     // 백엔드에서 1번 상품(실제 컨트랙트 연동 데모)을 가져옵니다.
-    const res = await fetch(`${API_BASE}/api/offerings/1`);
+    const res = await fetch(`${API_BASE}/offerings/1`);
     if (res.ok) {
       const realProduct: OfferingResponse = await res.json();
       return [realProduct, ...MOCK_PRODUCTS];
@@ -47,7 +47,7 @@ const fetchProducts = async (): Promise<OfferingResponse[]> => {
 const fetchProduct = async (productId: string): Promise<OfferingResponse | null> => {
   try {
     if (productId === '1') {
-      const res = await fetch(`${API_BASE}/api/offerings/1`);
+      const res = await fetch(`${API_BASE}/offerings/1`);
       if (res.ok) return await res.json();
     } else {
       const mock = MOCK_PRODUCTS.find(p => p.offeringId.toString() === productId);
