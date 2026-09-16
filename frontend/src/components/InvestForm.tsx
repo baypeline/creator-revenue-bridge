@@ -28,6 +28,17 @@ export function InvestForm({ productId }: InvestFormProps) {
     }
   });
 
+  // Read whitelist status
+  const { data: isAllowed, refetch: refetchAllowed } = useReadContract({
+    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    abi: RevenueBridgeABI,
+    functionName: 'allowedInvestors',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+    }
+  });
+
   // Write Transaction
   const { data: hash, isPending: isWritePending, writeContract } = useWriteContract();
 
@@ -43,6 +54,17 @@ export function InvestForm({ productId }: InvestFormProps) {
     }
   }, [isConfirmed, refetchAllowance]);
 
+  // 상단에서 새로고침(faucet API) 후 상태를 재반영하기 위해 창 포커스 시 refetch
+  useEffect(() => {
+    const handleFocus = () => {
+      refetchAllowed();
+      refetchAllowance();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refetchAllowed, refetchAllowance]);
+
+
   if (!isConnected || !product) {
     return (
       <button disabled className="w-full bg-gray-200 text-gray-500 font-bold py-4 rounded-xl cursor-not-allowed mt-4">
@@ -51,10 +73,20 @@ export function InvestForm({ productId }: InvestFormProps) {
     );
   }
 
+  if (isAllowed === false) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm mt-4 text-center">
+        <p className="text-red-600 font-bold mb-2">⚠️ 투자를 위한 초기 세팅이 필요합니다</p>
+        <p className="text-sm text-red-500">우측 상단의 <span className="font-bold bg-green-100 text-green-700 px-1 rounded">💰 테스트 돈 받기</span> 버튼을 눌러 먼저 지갑을 등록해주세요!</p>
+      </div>
+    );
+  }
+
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw); // e.g. 100_000_000 for 100 mUSD
   const parsedUnits = units ? BigInt(units) : BigInt(0);
   const requiredAmount = parsedUnits * unitPriceRaw;
   const currentAllowance = allowance ? (allowance as bigint) : BigInt(0);
+
   
   const needsApproval = requiredAmount > BigInt(0) && requiredAmount > currentAllowance;
 
