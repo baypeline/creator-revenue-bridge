@@ -3,6 +3,10 @@
 
 import { Calendar, TrendingUp } from 'lucide-react';
 import { OfferingResponse } from '../types/product';
+import { useReadContract } from 'wagmi';
+import { CONTRACT_ADDRESSES } from '../constants/contracts';
+import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
+import { formatUnits } from 'viem';
 
 interface ProductCardMiniProps {
   product: OfferingResponse;
@@ -10,7 +14,19 @@ interface ProductCardMiniProps {
 }
 
 export function ProductCardMini({ product, onClick }: ProductCardMiniProps) {
-  const currentAmount = 0; // TODO: 컨트랙트에서 모집된 금액 연동 필요
+  const { data: offeringData } = useReadContract({
+    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    abi: RevenueBridgeABI,
+    functionName: 'getOffering',
+    args: [BigInt(product.offeringId)],
+    query: {
+      enabled: !!product,
+    }
+  });
+
+  const unitPriceRaw = Number(formatUnits(BigInt(product.terms.unitPrice.raw), 6));
+  const raisedUnits = offeringData ? Number((offeringData as any).raisedUnits) : 0;
+  const currentAmount = raisedUnits * unitPriceRaw;
   const targetAmount = Number(product.terms.targetRaise.display);
   const progressPercent = Math.min((currentAmount / targetAmount) * 100, 100) || 0;
   
