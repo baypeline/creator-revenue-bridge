@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createWalletClient, http, publicActions, parseUnits } from 'viem';
+import { createWalletClient, http, publicActions, parseUnits, type Account } from 'viem';
 import { foundry } from 'viem/chains';
 import { CONTRACT_ADDRESSES, ERC20_ABI } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
@@ -14,7 +14,7 @@ const ADMIN_ACCOUNT = mnemonicToAccount(ANVIL_MNEMONIC, { addressIndex: 0 });
 const SETTLER_ACCOUNT = mnemonicToAccount(ANVIL_MNEMONIC, { addressIndex: 2 });
 const CREATOR_ACCOUNT = mnemonicToAccount(ANVIL_MNEMONIC, { addressIndex: 4 });
 
-const getClient = (account: any) => {
+const getClient = (account: Account) => {
   return createWalletClient({
     account,
     chain: foundry,
@@ -33,8 +33,9 @@ export function AdminPanel() {
       setStatusText(actionName);
       await action();
       alert(`${actionName} 완료되었습니다!`);
-    } catch (e: any) {
-      alert(`에러 발생: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(`에러 발생: ${msg}`);
     } finally {
       setIsPending(false);
       setStatusText('');

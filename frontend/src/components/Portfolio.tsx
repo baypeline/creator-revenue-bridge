@@ -6,6 +6,7 @@ import { CONTRACT_ADDRESSES } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { PortfolioCard } from './PortfolioCard';
 import { Wallet } from 'lucide-react';
+import type { Abi } from 'viem';
 
 export function Portfolio() {
   const { address, isConnected } = useAccount();
@@ -14,7 +15,7 @@ export function Portfolio() {
   // Create a read configuration for each product to check investedUnits
   const contracts = products.map((product) => ({
     address: CONTRACT_ADDRESSES.REVENUE_BRIDGE as `0x${string}`,
-    abi: RevenueBridgeABI as any,
+    abi: RevenueBridgeABI as Abi,
     functionName: 'investedUnits',
     args: [BigInt(product.offeringId), address],
   }));

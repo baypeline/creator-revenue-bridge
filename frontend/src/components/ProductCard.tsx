@@ -38,8 +38,9 @@ export function ProductCard({ productId }: { productId: string }) {
     );
   }
 
+  const offering = offeringData as { raisedUnits?: bigint } | undefined;
   const unitPriceRaw = Number(formatUnits(BigInt(product.terms.unitPrice.raw), 6));
-  const raisedUnits = offeringData ? Number((offeringData as any).raisedUnits) : 0;
+  const raisedUnits = offering?.raisedUnits ? Number(offering.raisedUnits) : 0;
   const currentAmount = raisedUnits * unitPriceRaw;
   const targetAmount = Number(product.terms.targetRaise.display);
   const progressPercent = Math.min((currentAmount / targetAmount) * 100, 100) || 0;

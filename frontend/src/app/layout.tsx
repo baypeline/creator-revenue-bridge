@@ -1,6 +1,6 @@
-/* eslint-disable @next/next/no-sync-scripts */
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import Script from "next/script";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -13,7 +13,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="ko">
       <head>
-        <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+        <Script src="https://unpkg.com/@tailwindcss/browser@4" strategy="beforeInteractive" />
       </head>
       <body>
         <Providers>{children}</Providers>

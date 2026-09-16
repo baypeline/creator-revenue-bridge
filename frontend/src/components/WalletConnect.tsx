@@ -2,15 +2,21 @@
 
 import { useAccount, useConnect, useDisconnect, useReadContract, useSwitchChain } from 'wagmi';
 import { Wallet } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { formatUnits, parseAbi } from 'viem';
 import { CONTRACT_ADDRESSES } from '../constants/contracts';
 
-export function WalletConnect() {
-  const [mounted, setMounted] = useState(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
-  useEffect(() => { setMounted(true); }, []);
+const emptySubscribe = () => () => {};
+function useMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
 
+export function WalletConnect() {
+  const mounted = useMounted();
   const { address, isConnected, chainId } = useAccount();
   const { connectors, connect, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();

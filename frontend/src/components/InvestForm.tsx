@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseUnits, formatUnits } from 'viem';
+import { formatUnits } from 'viem';
 import { CONTRACT_ADDRESSES, ERC20_ABI } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { Loader2 } from 'lucide-react';
@@ -29,13 +29,24 @@ export function InvestForm({ productId }: InvestFormProps) {
   });
 
   // Read whitelist status
-  const { data: isAllowed, refetch: refetchAllowed, isFetching: isFetchingAllowed } = useReadContract({
+  const { data: isAllowed, refetch: refetchAllowed } = useReadContract({
     address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
     abi: RevenueBridgeABI,
     functionName: 'allowedInvestors',
     args: address ? [address] : undefined,
     query: {
       enabled: !!address,
+    }
+  });
+
+  // Read offering data to calculate remaining units (always at top level)
+  const { data: offeringData } = useReadContract({
+    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    abi: RevenueBridgeABI,
+    functionName: 'getOffering',
+    args: [BigInt(productId)],
+    query: {
+      enabled: !!productId,
     }
   });
 
@@ -50,7 +61,6 @@ export function InvestForm({ productId }: InvestFormProps) {
   useEffect(() => {
     if (isConfirmed) {
       refetchAllowance();
-      setUnits('');
     }
   }, [isConfirmed, refetchAllowance]);
 
@@ -63,7 +73,6 @@ export function InvestForm({ productId }: InvestFormProps) {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [refetchAllowed, refetchAllowance]);
-
 
   if (!isConnected || !product) {
     return (
@@ -82,18 +91,8 @@ export function InvestForm({ productId }: InvestFormProps) {
     );
   }
 
-  // Read offering data to calculate remaining units
-  const { data: offeringData } = useReadContract({
-    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
-    abi: RevenueBridgeABI,
-    functionName: 'getOffering',
-    args: [BigInt(productId)],
-    query: {
-      enabled: !!productId,
-    }
-  });
-
-  const raisedUnits = offeringData ? Number((offeringData as any).raisedUnits) : 0;
+  const offering = offeringData as { raisedUnits?: bigint } | undefined;
+  const raisedUnits = offering?.raisedUnits ? Number(offering.raisedUnits) : 0;
   const remainingUnits = product.terms.unitsForSale - raisedUnits;
 
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw); // e.g. 100_000_000 for 100 mUSD

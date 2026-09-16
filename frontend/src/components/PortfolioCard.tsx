@@ -5,7 +5,7 @@ import { CONTRACT_ADDRESSES } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { OfferingResponse } from '../types/product';
 import { formatUnits } from 'viem';
-import { Loader2, TrendingUp, AlertCircle } from 'lucide-react';
+import { Loader2, TrendingUp } from 'lucide-react';
 import { useEffect } from 'react';
 
 interface PortfolioCardProps {
