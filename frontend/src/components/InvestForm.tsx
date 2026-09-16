@@ -52,14 +52,14 @@ export function InvestForm({ productId }: InvestFormProps) {
   }
 
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw); // e.g. 100_000_000 for 100 mUSD
-  const parsedUnits = units ? BigInt(units) : 0n;
+  const parsedUnits = units ? BigInt(units) : BigInt(0);
   const requiredAmount = parsedUnits * unitPriceRaw;
-  const currentAllowance = allowance ? (allowance as bigint) : 0n;
+  const currentAllowance = allowance ? (allowance as bigint) : BigInt(0);
   
-  const needsApproval = requiredAmount > 0n && requiredAmount > currentAllowance;
+  const needsApproval = requiredAmount > BigInt(0) && requiredAmount > currentAllowance;
 
   const handleApprove = () => {
-    if (!units || requiredAmount <= 0n) return;
+    if (!units || requiredAmount <= BigInt(0)) return;
     writeContract({
       address: CONTRACT_ADDRESSES.MUSD,
       abi: ERC20_ABI,
@@ -69,7 +69,7 @@ export function InvestForm({ productId }: InvestFormProps) {
   };
 
   const handleInvest = () => {
-    if (!units || requiredAmount <= 0n) return;
+    if (!units || requiredAmount <= BigInt(0)) return;
     writeContract({
       address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
       abi: RevenueBridgeABI,
@@ -98,7 +98,7 @@ export function InvestForm({ productId }: InvestFormProps) {
         {needsApproval ? (
           <button 
             onClick={handleApprove}
-            disabled={isPending || !units || requiredAmount <= 0n}
+            disabled={isPending || !units || requiredAmount <= BigInt(0)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
@@ -110,7 +110,7 @@ export function InvestForm({ productId }: InvestFormProps) {
         ) : (
           <button 
             onClick={handleInvest}
-            disabled={isPending || !units || requiredAmount <= 0n}
+            disabled={isPending || !units || requiredAmount <= BigInt(0)}
             className="bg-gray-900 hover:bg-black text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
@@ -126,7 +126,7 @@ export function InvestForm({ productId }: InvestFormProps) {
         <p className="text-xs text-gray-500">
           필요 금액: {units ? formatUnits(requiredAmount, 6) : '0'} mUSD
         </p>
-        {currentAllowance > 0n && (
+        {currentAllowance > BigInt(0) && (
           <p className="text-xs text-green-600 font-medium flex items-center gap-1">
             ✓ 승인 한도: {formatUnits(currentAllowance, 6)} mUSD
           </p>
