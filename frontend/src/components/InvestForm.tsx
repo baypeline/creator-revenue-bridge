@@ -18,7 +18,7 @@ export function InvestForm({ productId }: InvestFormProps) {
   const { product } = useProduct(productId);
 
   // Read mUSD Allowance
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+  const { data: allowance, refetch: refetchAllowance, isFetching: isFetchingAllowance } = useReadContract({
     address: CONTRACT_ADDRESSES.MUSD,
     abi: ERC20_ABI,
     functionName: 'allowance',
@@ -29,7 +29,7 @@ export function InvestForm({ productId }: InvestFormProps) {
   });
 
   // Read whitelist status
-  const { data: isAllowed, refetch: refetchAllowed } = useReadContract({
+  const { data: isAllowed, refetch: refetchAllowed, isFetching: isFetchingAllowed } = useReadContract({
     address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
     abi: RevenueBridgeABI,
     functionName: 'allowedInvestors',
@@ -125,7 +125,7 @@ export function InvestForm({ productId }: InvestFormProps) {
     });
   };
 
-  const isPending = isWritePending || isConfirming;
+  const isPending = isWritePending || isConfirming || isFetchingAllowance;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mt-4">
@@ -155,7 +155,7 @@ export function InvestForm({ productId }: InvestFormProps) {
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> 승인 중...</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> {isFetchingAllowance ? '동기화 중...' : '승인 중...'}</>
             ) : (
               '승인 (Approve)'
             )}
@@ -167,7 +167,7 @@ export function InvestForm({ productId }: InvestFormProps) {
             className="bg-gray-900 hover:bg-black text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> 처리 중...</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> {isFetchingAllowance ? '동기화 중...' : '처리 중...'}</>
             ) : remainingUnits === 0 ? (
               '모집 마감'
             ) : (

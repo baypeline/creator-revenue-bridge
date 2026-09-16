@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { WalletConnect } from "../components/WalletConnect";
 import { Marketplace } from "../components/Marketplace";
 import { Portfolio } from "../components/Portfolio";
+import { AdminPanel } from "../components/AdminPanel";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'marketplace' | 'portfolio'>('marketplace');
@@ -63,6 +64,8 @@ export default function Home() {
       <main className="max-w-5xl mx-auto px-6 py-12">
         {activeTab === 'marketplace' ? <Marketplace /> : <Portfolio />}
       </main>
+      
+      <AdminPanel />
     </div>
   );
 }
