@@ -6,22 +6,20 @@ import { CONTRACT_ADDRESSES } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { PortfolioCard } from './PortfolioCard';
 import { Wallet } from 'lucide-react';
-import type { Abi } from 'viem';
 
 export function Portfolio() {
   const { address, isConnected } = useAccount();
   const { products, isLoading: productsLoading } = useProducts();
 
-  // Create a read configuration for each product to check investedUnits
-  const contracts = products.map((product) => ({
-    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE as `0x${string}`,
-    abi: RevenueBridgeABI as Abi,
-    functionName: 'investedUnits',
-    args: [BigInt(product.offeringId), address],
-  }));
-
   const { data: investedData, isLoading: isContractLoading } = useReadContracts({
-    contracts: address ? contracts : [],
+    contracts: address
+      ? products.map((product) => ({
+          address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+          abi: RevenueBridgeABI,
+          functionName: 'investedUnits',
+          args: [BigInt(product.offeringId), address],
+        }))
+      : [],
     query: {
       enabled: isConnected && !!address && products.length > 0,
     }
