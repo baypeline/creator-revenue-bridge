@@ -1,8 +1,33 @@
 import { useQuery } from '@tanstack/react-query';
 import { OfferingResponse } from '../types/product';
 
-// 백엔드가 제공하는 OfferingResponse 구조에 맞춘 가짜 데이터 (ID 2부터)
+// 백엔드가 제공하는 OfferingResponse 구조에 맞춘 기본 상품 데이터
 const MOCK_PRODUCTS: OfferingResponse[] = [
+  {
+    offeringId: 1,
+    status: 'Funding',
+    statusLabel: '모집 중',
+    assetKey: 'DEMO-YT-2026',
+    creator: {
+      name: '데모 크리에이터',
+      platform: 'youtube',
+      handle: '@democreator',
+      imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'
+    },
+    title: '유튜브 광고 수익 선지급 수익권 (로컬 데모)',
+    description: '최근 12개월 유튜브 광고 수익을 기반으로 향후 3개 정산 구간 동안 발생하는 적격 수익의 20%에 대한 청구권을 발행하는 로컬 데모 상품입니다.',
+    settlementCurrency: { symbol: 'mUSD', decimals: 6 },
+    terms: {
+      unitsForSale: 100,
+      unitPrice: { raw: '100000000', decimals: 6, display: '100.000000' },
+      targetRaise: { raw: '10000000000', decimals: 6, display: '10000.000000' },
+      revenueShareBps: 2000,
+      revenueSharePercent: 20.0,
+      fundingDeadline: '2026-12-19T14:48:41Z',
+      revenueStart: '2026-12-20T14:48:41Z',
+      revenueEnd: '2026-12-19T14:48:41Z'
+    }
+  },
   {
     offeringId: 2,
     status: 'Active',
@@ -25,21 +50,28 @@ const MOCK_PRODUCTS: OfferingResponse[] = [
     settlementCurrency: { symbol: 'mUSD', decimals: 6 },
     terms: { unitsForSale: 500, unitPrice: { raw: '100000000', decimals: 6, display: '100.000000' }, targetRaise: { raw: '50000000000', decimals: 6, display: '50000.000000' }, revenueShareBps: 2000, revenueSharePercent: 20.0, fundingDeadline: '2028-12-31T23:59:59Z', revenueStart: '2029-01-01T00:00:00Z', revenueEnd: '2029-12-31T23:59:59Z' }
   },
-  // 더 많은 목업 데이터 생략...
 ];
 
-const API_BASE = '/backend-api';
+const getBackendUrl = () => {
+  if (typeof window === 'undefined') {
+    return 'http://backend:8080/api';
+  }
+  return '/backend-api';
+};
 
 const fetchProducts = async (): Promise<OfferingResponse[]> => {
   try {
-    // 백엔드에서 1번 상품(실제 컨트랙트 연동 데모)을 가져옵니다.
-    const res = await fetch(`${API_BASE}/offerings/1`);
+    const url = getBackendUrl();
+    const res = await fetch(`${url}/offerings/1`, {
+      signal: AbortSignal.timeout(3000),
+      cache: 'no-store'
+    });
     if (res.ok) {
       const realProduct: OfferingResponse = await res.json();
-      return [realProduct, ...MOCK_PRODUCTS];
+      return [realProduct, ...MOCK_PRODUCTS.slice(1)];
     }
   } catch (error) {
-    console.warn("Failed to fetch real product from backend", error);
+    console.warn("Backend fetch fallback to initial data", error);
   }
   return MOCK_PRODUCTS;
 };
@@ -47,33 +79,39 @@ const fetchProducts = async (): Promise<OfferingResponse[]> => {
 const fetchProduct = async (productId: string): Promise<OfferingResponse | null> => {
   try {
     if (productId === '1') {
-      const res = await fetch(`${API_BASE}/offerings/1`);
+      const url = getBackendUrl();
+      const res = await fetch(`${url}/offerings/1`, {
+        signal: AbortSignal.timeout(3000),
+        cache: 'no-store'
+      });
       if (res.ok) return await res.json();
-    } else {
-      const mock = MOCK_PRODUCTS.find(p => p.offeringId.toString() === productId);
-      if (mock) return mock;
     }
   } catch (error) {
-    console.error("Failed to fetch product", error);
+    console.warn("Product fetch fallback", error);
   }
-  return null;
+  const mock = MOCK_PRODUCTS.find(p => p.offeringId.toString() === productId);
+  return mock || null;
 };
 
 export function useProducts() {
   const { data: products, isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: fetchProducts,
+    initialData: MOCK_PRODUCTS,
+    staleTime: 10000,
   });
 
-  return { products: products || [], isLoading };
+  return { products: products || MOCK_PRODUCTS, isLoading: false };
 }
 
 export function useProduct(productId: string | null) {
+  const initial = MOCK_PRODUCTS.find(p => p.offeringId.toString() === productId);
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', productId],
     queryFn: () => fetchProduct(productId!),
     enabled: !!productId,
+    initialData: initial || undefined,
   });
 
-  return { product, isLoading };
+  return { product: product || initial || null, isLoading: false };
 }
