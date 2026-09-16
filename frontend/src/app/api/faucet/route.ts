@@ -42,6 +42,24 @@ export async function POST(request: Request) {
       data,
     });
 
+    // 3. 투자자 화이트리스트 자동 승인 (RevenueBridge.setInvestorAllowed)
+    const whitelistData = encodeFunctionData({
+      abi: [{
+        type: 'function',
+        name: 'setInvestorAllowed',
+        inputs: [{ type: 'address' }, { type: 'bool' }],
+        outputs: [],
+        stateMutability: 'nonpayable'
+      }],
+      functionName: 'setInvestorAllowed',
+      args: [address as `0x${string}`, true],
+    });
+
+    await client.sendTransaction({
+      to: CONTRACT_ADDRESSES.REVENUE_BRIDGE as `0x${string}`,
+      data: whitelistData,
+    });
+
     return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
