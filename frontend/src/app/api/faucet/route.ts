@@ -7,15 +7,30 @@ import { CONTRACT_ADDRESSES } from '@/constants/contracts';
 // Anvil 기본 제공 0번 계정 (10,000 ETH 보유)
 const account = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
 
+const getRpcUrl = async () => {
+  if (process.env.WEB3_RPC_URL) return process.env.WEB3_RPC_URL;
+  try {
+    const res = await fetch('http://anvil:8545', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
+      signal: AbortSignal.timeout(1000)
+    });
+    if (res.ok) return 'http://anvil:8545';
+  } catch {}
+  return 'http://localhost:8545';
+};
+
 export async function POST(request: Request) {
   try {
     const { address } = await request.json();
     if (!address) return NextResponse.json({ error: 'No address' }, { status: 400 });
 
+    const rpcUrl = await getRpcUrl();
     const client = createWalletClient({
       account,
       chain: foundry,
-      transport: http('http://anvil:8545') // 도커 내부망 주소
+      transport: http(rpcUrl)
     });
 
     // 1. 가스비용 10 ETH 전송

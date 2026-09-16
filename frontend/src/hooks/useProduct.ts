@@ -94,7 +94,7 @@ const fetchProduct = async (productId: string): Promise<OfferingResponse | null>
 };
 
 export function useProducts() {
-  const { data: products, isLoading } = useQuery({
+  const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: fetchProducts,
     initialData: MOCK_PRODUCTS,
@@ -106,7 +106,7 @@ export function useProducts() {
 
 export function useProduct(productId: string | null) {
   const initial = MOCK_PRODUCTS.find(p => p.offeringId.toString() === productId);
-  const { data: product, isLoading } = useQuery({
+  const { data: product } = useQuery({
     queryKey: ['product', productId],
     queryFn: () => fetchProduct(productId!),
     enabled: !!productId,
