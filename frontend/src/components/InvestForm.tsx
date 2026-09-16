@@ -82,16 +82,31 @@ export function InvestForm({ productId }: InvestFormProps) {
     );
   }
 
+  // Read offering data to calculate remaining units
+  const { data: offeringData } = useReadContract({
+    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    abi: RevenueBridgeABI,
+    functionName: 'getOffering',
+    args: [BigInt(productId)],
+    query: {
+      enabled: !!productId,
+    }
+  });
+
+  const raisedUnits = offeringData ? Number((offeringData as any).raisedUnits) : 0;
+  const remainingUnits = product.terms.unitsForSale - raisedUnits;
+
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw); // e.g. 100_000_000 for 100 mUSD
   const parsedUnits = units ? BigInt(units) : BigInt(0);
   const requiredAmount = parsedUnits * unitPriceRaw;
   const currentAllowance = allowance ? (allowance as bigint) : BigInt(0);
 
+  const isExceedingCapacity = Number(parsedUnits) > remainingUnits;
   
   const needsApproval = requiredAmount > BigInt(0) && requiredAmount > currentAllowance;
 
   const handleApprove = () => {
-    if (!units || requiredAmount <= BigInt(0)) return;
+    if (!units || requiredAmount <= BigInt(0) || isExceedingCapacity) return;
     writeContract({
       address: CONTRACT_ADDRESSES.MUSD,
       abi: ERC20_ABI,
@@ -101,7 +116,7 @@ export function InvestForm({ productId }: InvestFormProps) {
   };
 
   const handleInvest = () => {
-    if (!units || requiredAmount <= BigInt(0)) return;
+    if (!units || requiredAmount <= BigInt(0) || isExceedingCapacity) return;
     writeContract({
       address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
       abi: RevenueBridgeABI,
@@ -114,23 +129,29 @@ export function InvestForm({ productId }: InvestFormProps) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mt-4">
-      <h3 className="text-sm font-bold text-gray-900 mb-3">투자할 수량 (단위: 구좌)</h3>
+      <div className="flex justify-between items-end mb-3">
+        <h3 className="text-sm font-bold text-gray-900">투자할 수량 (단위: 구좌)</h3>
+        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+          잔여: {remainingUnits.toLocaleString()} 구좌
+        </span>
+      </div>
       <div className="flex gap-3">
         <input
           type="number"
-          min="0"
+          min="1"
+          max={remainingUnits}
           step="1"
-          placeholder="예: 10 (구좌)"
+          placeholder={`최대 ${remainingUnits} 구좌`}
           value={units}
           onChange={(e) => setUnits(e.target.value)}
-          disabled={isPending}
-          className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all disabled:opacity-50"
+          disabled={isPending || remainingUnits === 0}
+          className={`flex-1 bg-gray-50 border ${isExceedingCapacity ? 'border-red-400 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-500'} rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:bg-white transition-all disabled:opacity-50`}
         />
         
         {needsApproval ? (
           <button 
             onClick={handleApprove}
-            disabled={isPending || !units || requiredAmount <= BigInt(0)}
+            disabled={isPending || !units || requiredAmount <= BigInt(0) || isExceedingCapacity}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
@@ -142,11 +163,13 @@ export function InvestForm({ productId }: InvestFormProps) {
         ) : (
           <button 
             onClick={handleInvest}
-            disabled={isPending || !units || requiredAmount <= BigInt(0)}
+            disabled={isPending || !units || requiredAmount <= BigInt(0) || isExceedingCapacity || remainingUnits === 0}
             className="bg-gray-900 hover:bg-black text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> 처리 중...</>
+            ) : remainingUnits === 0 ? (
+              '모집 마감'
             ) : (
               '투자하기'
             )}
@@ -154,10 +177,17 @@ export function InvestForm({ productId }: InvestFormProps) {
         )}
       </div>
       
-      <div className="mt-3 flex justify-between">
-        <p className="text-xs text-gray-500">
-          필요 금액: {units ? formatUnits(requiredAmount, 6) : '0'} mUSD
-        </p>
+      <div className="mt-3 flex justify-between items-center">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs text-gray-500">
+            필요 금액: {units ? formatUnits(requiredAmount, 6) : '0'} mUSD
+          </p>
+          {isExceedingCapacity && (
+            <p className="text-xs text-red-500 font-bold">
+              잔여 구좌({remainingUnits})를 초과할 수 없습니다.
+            </p>
+          )}
+        </div>
         {currentAllowance > BigInt(0) && (
           <p className="text-xs text-green-600 font-medium flex items-center gap-1">
             ✓ 승인 한도: {formatUnits(currentAllowance, 6)} mUSD
