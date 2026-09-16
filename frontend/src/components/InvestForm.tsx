@@ -4,15 +4,18 @@ import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { CONTRACT_ADDRESSES, ERC20_ABI } from '../constants/contracts';
+import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { Loader2 } from 'lucide-react';
+import { useProduct } from '../hooks/useProduct';
 
 interface InvestFormProps {
   productId: string;
 }
 
 export function InvestForm({ productId }: InvestFormProps) {
-  const [amount, setAmount] = useState('');
+  const [units, setUnits] = useState('');
   const { address, isConnected } = useAccount();
+  const { product } = useProduct(productId);
 
   // Read mUSD Allowance
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
@@ -25,7 +28,7 @@ export function InvestForm({ productId }: InvestFormProps) {
     }
   });
 
-  // Write Approve Transaction
+  // Write Transaction
   const { data: hash, isPending: isWritePending, writeContract } = useWriteContract();
 
   // Wait for Transaction Receipt
@@ -36,11 +39,11 @@ export function InvestForm({ productId }: InvestFormProps) {
   useEffect(() => {
     if (isConfirmed) {
       refetchAllowance();
-      setAmount('');
+      setUnits('');
     }
   }, [isConfirmed, refetchAllowance]);
 
-  if (!isConnected) {
+  if (!isConnected || !product) {
     return (
       <button disabled className="w-full bg-gray-200 text-gray-500 font-bold py-4 rounded-xl cursor-not-allowed mt-4">
         지갑을 먼저 연결해주세요
@@ -48,19 +51,30 @@ export function InvestForm({ productId }: InvestFormProps) {
     );
   }
 
-  const parsedAmount = amount ? parseUnits(amount, 6) : 0n;
+  const unitPriceRaw = BigInt(product.terms.unitPrice.raw); // e.g. 100_000_000 for 100 mUSD
+  const parsedUnits = units ? BigInt(units) : 0n;
+  const requiredAmount = parsedUnits * unitPriceRaw;
   const currentAllowance = allowance ? (allowance as bigint) : 0n;
   
-  // 입력한 금액이 0보다 크고, 승인된 한도보다 클 경우에만 Approve 버튼 표시
-  const needsApproval = parsedAmount > 0n && parsedAmount > currentAllowance;
+  const needsApproval = requiredAmount > 0n && requiredAmount > currentAllowance;
 
   const handleApprove = () => {
-    if (!amount || parsedAmount <= 0n) return;
+    if (!units || requiredAmount <= 0n) return;
     writeContract({
       address: CONTRACT_ADDRESSES.MUSD,
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [CONTRACT_ADDRESSES.REVENUE_BRIDGE, parsedAmount],
+      args: [CONTRACT_ADDRESSES.REVENUE_BRIDGE, requiredAmount],
+    });
+  };
+
+  const handleInvest = () => {
+    if (!units || requiredAmount <= 0n) return;
+    writeContract({
+      address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+      abi: RevenueBridgeABI,
+      functionName: 'invest',
+      args: [BigInt(productId), parsedUnits],
     });
   };
 
@@ -68,15 +82,15 @@ export function InvestForm({ productId }: InvestFormProps) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mt-4">
-      <h3 className="text-sm font-bold text-gray-900 mb-3">투자할 수량 (mUSD)</h3>
+      <h3 className="text-sm font-bold text-gray-900 mb-3">투자할 수량 (단위: 구좌)</h3>
       <div className="flex gap-3">
         <input
           type="number"
           min="0"
           step="1"
-          placeholder="예: 1000"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          placeholder="예: 10 (구좌)"
+          value={units}
+          onChange={(e) => setUnits(e.target.value)}
           disabled={isPending}
           className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all disabled:opacity-50"
         />
@@ -84,7 +98,7 @@ export function InvestForm({ productId }: InvestFormProps) {
         {needsApproval ? (
           <button 
             onClick={handleApprove}
-            disabled={isPending || !amount || parsedAmount <= 0n}
+            disabled={isPending || !units || requiredAmount <= 0n}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
@@ -95,22 +109,33 @@ export function InvestForm({ productId }: InvestFormProps) {
           </button>
         ) : (
           <button 
-            disabled
-            className="bg-gray-900 text-white font-bold px-6 py-3 rounded-lg flex items-center gap-2 shadow-md opacity-50 cursor-not-allowed whitespace-nowrap"
+            onClick={handleInvest}
+            disabled={isPending || !units || requiredAmount <= 0n}
+            className="bg-gray-900 hover:bg-black text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
-            투자하기
+            {isPending ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> 처리 중...</>
+            ) : (
+              '투자하기'
+            )}
           </button>
         )}
       </div>
       
-      {currentAllowance > 0n && (
-        <p className="text-xs text-green-600 mt-3 font-medium flex items-center gap-1">
-          ✓ 현재 승인된 한도: {formatUnits(currentAllowance, 6)} mUSD
+      <div className="mt-3 flex justify-between">
+        <p className="text-xs text-gray-500">
+          필요 금액: {units ? formatUnits(requiredAmount, 6) : '0'} mUSD
         </p>
-      )}
+        {currentAllowance > 0n && (
+          <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+            ✓ 승인 한도: {formatUnits(currentAllowance, 6)} mUSD
+          </p>
+        )}
+      </div>
+      
       {isConfirmed && (
         <p className="text-xs text-blue-600 mt-2 font-medium">
-          승인이 완료되었습니다! (5단계에서 투자 기능이 활성화됩니다)
+          트랜잭션이 성공적으로 처리되었습니다!
         </p>
       )}
     </div>

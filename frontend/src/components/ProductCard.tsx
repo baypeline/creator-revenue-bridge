@@ -4,11 +4,25 @@
 import { useProduct } from '../hooks/useProduct';
 import { Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { InvestForm } from './InvestForm';
+import { useReadContract } from 'wagmi';
+import { CONTRACT_ADDRESSES } from '../constants/contracts';
+import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
+import { formatUnits } from 'viem';
 
 export function ProductCard({ productId }: { productId: string }) {
   const { product, isLoading } = useProduct(productId);
 
-  if (isLoading || !product) {
+  const { data: offeringData } = useReadContract({
+    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    abi: RevenueBridgeABI,
+    functionName: 'getOffering',
+    args: [BigInt(productId)],
+    query: {
+      enabled: !!productId && !isLoading && !!product,
+    }
+  });
+
+  if (isLoading) {
     return (
       <div className="w-full max-w-2xl mx-auto h-[500px] bg-white animate-pulse rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center">
         <span className="text-gray-400 font-medium">상품 정보를 불러오는 중...</span>
@@ -16,25 +30,37 @@ export function ProductCard({ productId }: { productId: string }) {
     );
   }
 
-  const progressPercent = Math.min((product.currentAmount / product.targetAmount) * 100, 100);
+  if (!product) {
+    return (
+      <div className="w-full max-w-2xl mx-auto h-[500px] bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center">
+        <span className="text-gray-400 font-medium">상품 정보를 찾을 수 없습니다.</span>
+      </div>
+    );
+  }
+
+  const unitPriceRaw = Number(formatUnits(BigInt(product.terms.unitPrice.raw), 6));
+  const raisedUnits = offeringData ? Number((offeringData as any).raisedUnits) : 0;
+  const currentAmount = raisedUnits * unitPriceRaw;
+  const targetAmount = Number(product.terms.targetRaise.display);
+  const progressPercent = Math.min((currentAmount / targetAmount) * 100, 100) || 0;
 
   return (
     <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
       {/* 썸네일 영역 */}
       <div className="h-64 overflow-hidden relative bg-gray-900">
         <img 
-          src={product.imageUrl} 
+          src={product.creator.imageUrl} 
           alt={product.title} 
           className="w-full h-full object-cover opacity-80"
         />
         <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
-          {product.status === 'funding' ? '모집 중' : '모집 완료'}
+          {product.statusLabel}
         </div>
       </div>
 
       {/* 정보 영역 */}
       <div className="p-8">
-        <div className="text-sm text-blue-600 font-bold mb-2 tracking-wide">{product.creatorName}</div>
+        <div className="text-sm text-blue-600 font-bold mb-2 tracking-wide">{product.creator.name}</div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4 tracking-tight">{product.title}</h2>
         <p className="text-gray-600 text-sm mb-6 leading-relaxed">
           {product.description}
@@ -44,16 +70,16 @@ export function ProductCard({ productId }: { productId: string }) {
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-blue-50 p-4 rounded-xl border border-blue-100/50">
             <div className="flex items-center gap-2 text-blue-700 text-xs font-bold mb-1 uppercase tracking-wider">
-              <TrendingUp className="w-4 h-4" /> 예상 연 수익률
+              <TrendingUp className="w-4 h-4" /> 수익 분배 비율
             </div>
-            <div className="text-3xl font-black text-blue-900">{product.expectedApy}%</div>
+            <div className="text-3xl font-black text-blue-900">{product.terms.revenueSharePercent}%</div>
           </div>
           <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
             <div className="flex items-center gap-2 text-gray-600 text-xs font-bold mb-1 uppercase tracking-wider">
               <Calendar className="w-4 h-4" /> 정산 만기일
             </div>
             <div className="text-xl font-bold text-gray-900 mt-1">
-              {new Date(product.maturityDate).toLocaleDateString('ko-KR')}
+              {new Date(product.terms.revenueEnd).toLocaleDateString('ko-KR')}
             </div>
           </div>
         </div>
@@ -73,8 +99,8 @@ export function ProductCard({ productId }: { productId: string }) {
             </div>
           </div>
           <div className="flex justify-between text-sm font-medium">
-            <span className="text-gray-900">{product.currentAmount.toLocaleString()} mUSD 모임</span>
-            <span className="text-gray-500">목표 {product.targetAmount.toLocaleString()} mUSD</span>
+            <span className="text-gray-900">{currentAmount.toLocaleString()} mUSD 모임</span>
+            <span className="text-gray-500">목표 {targetAmount.toLocaleString()} mUSD</span>
           </div>
         </div>
 

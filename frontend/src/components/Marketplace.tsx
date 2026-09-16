@@ -22,8 +22,8 @@ export function Marketplace() {
 
   // 필터링 로직
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.title.includes(searchQuery) || product.creatorName.includes(searchQuery);
-    const matchesStatus = selectedStatus === 'all' || product.status === selectedStatus;
+    const matchesSearch = product.title.includes(searchQuery) || product.creator.name.includes(searchQuery);
+    const matchesStatus = selectedStatus === 'all' || product.status.toLowerCase() === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -47,7 +47,7 @@ export function Marketplace() {
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-            {['all', 'funding', 'active', 'completed'].map((status) => (
+            {['all', 'funding', 'active', 'closed'].map((status) => (
               <button
                 key={status}
                 onClick={() => setSelectedStatus(status)}
@@ -81,9 +81,9 @@ export function Marketplace() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map(product => (
             <ProductCardMini 
-              key={product.id} 
+              key={product.offeringId} 
               product={product} 
-              onClick={(id) => setSelectedProductId(id)} 
+              onClick={(id) => setSelectedProductId(id.toString())} 
             />
           ))}
         </div>
