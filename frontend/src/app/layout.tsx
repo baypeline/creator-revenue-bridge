@@ -13,10 +13,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="ko">
       <head>
-        <Script src="https://unpkg.com/@tailwindcss/browser@4" strategy="beforeInteractive" />
       </head>
       <body>
         <Providers>{children}</Providers>
+        <Script src="https://unpkg.com/@tailwindcss/browser@4" />
       </body>
     </html>
   );

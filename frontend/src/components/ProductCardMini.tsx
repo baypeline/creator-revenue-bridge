@@ -58,7 +58,7 @@ export function ProductCardMini({ product, onClick }: ProductCardMiniProps) {
             </div>
             <div className="flex items-center gap-1 text-gray-500 text-xs">
               <Calendar className="w-3 h-3" />
-              {new Date(product.terms.revenueEnd).getFullYear()}년 정산
+              {new Date(product.terms.revenueEnd).getUTCFullYear()}년 정산
             </div>
           </div>
 

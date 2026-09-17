@@ -80,7 +80,7 @@ export function ProductCard({ productId }: { productId: string }) {
               <Calendar className="w-4 h-4" /> 정산 만기일
             </div>
             <div className="text-xl font-bold text-gray-900 mt-1">
-              {new Date(product.terms.revenueEnd).toLocaleDateString('ko-KR')}
+              {new Date(product.terms.revenueEnd).toLocaleDateString('ko-KR', { timeZone: 'UTC' })}
             </div>
           </div>
         </div>
