@@ -39,6 +39,10 @@ contract DeployBaseSepoliaTest is Test {
         string memory deploymentJson = vm.readFile(deploymentPath);
         assertEq(vm.parseJsonUint(deploymentJson, ".chainId"), 84_532);
         assertEq(vm.parseJsonString(deploymentJson, ".network"), "base-sepolia");
+        assertEq(
+            vm.parseJsonString(deploymentJson, ".tokenBaseUri"),
+            "https://example.test/revenue-rights/{id}.json"
+        );
         assertEq(vm.parseJsonAddress(deploymentJson, ".deployer"), deployer);
         assertTrue(vm.parseJsonBool(deploymentJson, ".usesMockSettlementToken"));
         assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.revenueBridge"), address(bridge));

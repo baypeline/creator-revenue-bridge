@@ -124,7 +124,8 @@ jobs:
           python3 scripts/validate-deployment-manifest.py \
             "$manifest" \
             --chain-id 84532 \
-            --network base-sepolia
+            --network base-sepolia \
+            --token-base-uri 'https://pricetext.store/api/revenue-rights/{id}.json'
           echo "ready=true" >> "$GITHUB_OUTPUT"
           echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 

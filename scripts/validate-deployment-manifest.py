@@ -43,6 +43,7 @@ def main() -> None:
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--chain-id", type=int, required=True)
     parser.add_argument("--network", required=True)
+    parser.add_argument("--token-base-uri", required=True)
     args = parser.parse_args()
 
     try:
@@ -59,6 +60,8 @@ def main() -> None:
         fail(f"chainId must be {args.chain_id}")
     if manifest.get("network") != args.network:
         fail(f"network must be {args.network}")
+    if manifest.get("tokenBaseUri") != args.token_base_uri:
+        fail(f"tokenBaseUri must be {args.token_base_uri}")
     if not isinstance(manifest.get("usesMockSettlementToken"), bool):
         fail("usesMockSettlementToken must be a boolean")
 

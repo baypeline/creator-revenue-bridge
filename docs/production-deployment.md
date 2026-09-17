@@ -4,7 +4,7 @@
 
 `main`에 변경이 들어오면 GitHub Actions가 컨트랙트, 백엔드와 프론트엔드를 병렬로 검증한다. Base Sepolia 배포 manifest인 `contracts/deployments/base-sepolia/84532.json`이 없으면 여기서 종료하며 운영 이미지를 게시하지 않는다.
 
-manifest가 있으면 체인 ID, 네트워크 이름, 컨트랙트 주소, 역할 주소와 비밀 필드 부재를 검사한다. 검사를 통과한 뒤 같은 커밋으로 frontend와 backend 이미지를 만들고 다음 이름으로 GHCR에 게시한다.
+manifest가 있으면 체인 ID, 네트워크 이름, `pricetext.store` metadata URI, 컨트랙트 주소, 역할 주소와 비밀 필드 부재를 검사한다. 검사를 통과한 뒤 같은 커밋으로 frontend와 backend 이미지를 만들고 다음 이름으로 GHCR에 게시한다.
 
 ```text
 ghcr.io/baypeline/creator-revenue-bridge-frontend:sha-<commit>

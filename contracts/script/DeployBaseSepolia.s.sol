@@ -142,6 +142,7 @@ contract DeployBaseSepolia is Script {
 
         string memory deploymentJson = vm.serializeUint("baseSepoliaDeployment", "chainId", BASE_SEPOLIA_CHAIN_ID);
         vm.serializeString("baseSepoliaDeployment", "network", "base-sepolia");
+        vm.serializeString("baseSepoliaDeployment", "tokenBaseUri", config.tokenBaseUri);
         vm.serializeAddress("baseSepoliaDeployment", "deployer", config.deployer);
         vm.serializeBool("baseSepoliaDeployment", "usesMockSettlementToken", deployedMockSettlementToken);
         vm.serializeString("baseSepoliaDeployment", "contracts", contractsJson);
