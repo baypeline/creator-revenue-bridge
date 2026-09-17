@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAccount, usePublicClient, useReadContract, useWriteContract } from 'wagmi';
 import { formatUnits } from 'viem';
 import { ERC20_ABI, IS_LOCAL_CHAIN } from '../constants/contracts';
 import { useActiveContracts } from '../hooks/useActiveContracts';
@@ -15,6 +16,10 @@ interface InvestFormProps {
 
 export function InvestForm({ productId }: InvestFormProps) {
   const [units, setUnits] = useState('');
+  const [flowStatus, setFlowStatus] = useState<'idle' | 'approving' | 'investing' | 'success'>('idle');
+  const [flowError, setFlowError] = useState('');
+  const queryClient = useQueryClient();
+  const publicClient = usePublicClient();
   const { address, isConnected } = useAccount();
   const { product } = useProduct(productId);
   const { addresses } = useActiveContracts();
@@ -42,7 +47,7 @@ export function InvestForm({ productId }: InvestFormProps) {
   });
 
   // Read offering data to calculate remaining units (always at top level)
-  const { data: offeringData } = useReadContract({
+  const { data: offeringData, refetch: refetchOffering } = useReadContract({
     address: addresses.REVENUE_BRIDGE,
     abi: RevenueBridgeABI,
     functionName: 'getOffering',
@@ -52,19 +57,7 @@ export function InvestForm({ productId }: InvestFormProps) {
     }
   });
 
-  // Write Transaction
-  const { data: hash, isPending: isWritePending, writeContract } = useWriteContract();
-
-  // Wait for Transaction Receipt
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  useEffect(() => {
-    if (isConfirmed) {
-      refetchAllowance();
-    }
-  }, [isConfirmed, refetchAllowance]);
+  const { writeContractAsync } = useWriteContract();
 
   // 외부에서 투자자 등록이나 토큰 지급이 완료된 뒤 상태를 재반영한다.
   useEffect(() => {
@@ -103,7 +96,8 @@ export function InvestForm({ productId }: InvestFormProps) {
   const isFunding = offering?.status === undefined || Number(offering.status) === 1;
 
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw); // e.g. 100_000_000 for 100 mUSD
-  const parsedUnits = units ? BigInt(units) : BigInt(0);
+  const hasValidUnits = /^\d+$/.test(units) && BigInt(units) > BigInt(0);
+  const parsedUnits = hasValidUnits ? BigInt(units) : BigInt(0);
   const requiredAmount = parsedUnits * unitPriceRaw;
   const currentAllowance = allowance ? (allowance as bigint) : BigInt(0);
 
@@ -111,27 +105,54 @@ export function InvestForm({ productId }: InvestFormProps) {
   
   const needsApproval = requiredAmount > BigInt(0) && requiredAmount > currentAllowance;
 
-  const handleApprove = () => {
-    if (!units || requiredAmount <= BigInt(0) || isExceedingCapacity) return;
-    writeContract({
-      address: addresses.MUSD,
-      abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [addresses.REVENUE_BRIDGE, requiredAmount],
-    });
+  const handleInvest = async () => {
+    if (!hasValidUnits || isExceedingCapacity || !publicClient) return;
+
+    try {
+      setFlowError('');
+
+      if (needsApproval) {
+        setFlowStatus('approving');
+        const approvalHash = await writeContractAsync({
+          address: addresses.MUSD,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [addresses.REVENUE_BRIDGE, requiredAmount],
+        });
+        const approvalReceipt = await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+        if (approvalReceipt.status !== 'success') throw new Error('approval reverted');
+      }
+
+      setFlowStatus('investing');
+      const investmentHash = await writeContractAsync({
+        address: addresses.REVENUE_BRIDGE,
+        abi: RevenueBridgeABI,
+        functionName: 'invest',
+        args: [BigInt(productId), parsedUnits],
+      });
+      const investmentReceipt = await publicClient.waitForTransactionReceipt({ hash: investmentHash });
+      if (investmentReceipt.status !== 'success') throw new Error('investment reverted');
+
+      setUnits('');
+      await Promise.all([
+        refetchAllowance(),
+        refetchOffering(),
+        queryClient.invalidateQueries(),
+      ]);
+      setFlowStatus('success');
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message.toLowerCase() : '';
+      await Promise.allSettled([refetchAllowance(), refetchOffering()]);
+      setFlowStatus('idle');
+      setFlowError(
+        message.includes('user rejected') || message.includes('user denied')
+          ? '지갑에서 트랜잭션 요청이 취소되었습니다.'
+          : '투자 처리에 실패했습니다. 지갑과 네트워크 상태를 확인한 뒤 다시 시도해주세요.',
+      );
+    }
   };
 
-  const handleInvest = () => {
-    if (!units || requiredAmount <= BigInt(0) || isExceedingCapacity) return;
-    writeContract({
-      address: addresses.REVENUE_BRIDGE,
-      abi: RevenueBridgeABI,
-      functionName: 'invest',
-      args: [BigInt(productId), parsedUnits],
-    });
-  };
-
-  const isPending = isWritePending || isConfirming || isFetchingAllowance;
+  const isPending = flowStatus === 'approving' || flowStatus === 'investing' || isFetchingAllowance;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mt-4">
@@ -149,40 +170,30 @@ export function InvestForm({ productId }: InvestFormProps) {
           step="1"
           placeholder={`최대 ${remainingUnits} 구좌`}
           value={units}
-          onChange={(e) => setUnits(e.target.value)}
+          onChange={(e) => {
+            setUnits(e.target.value);
+            setFlowStatus('idle');
+            setFlowError('');
+          }}
           disabled={isPending || remainingUnits === 0 || !isFunding}
           className={`flex-1 bg-gray-50 border ${isExceedingCapacity ? 'border-red-400 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-500'} rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:bg-white transition-all disabled:opacity-50`}
         />
         
-        {needsApproval ? (
-          <button 
-            onClick={handleApprove}
-            disabled={isPending || !isFunding || !units || requiredAmount <= BigInt(0) || isExceedingCapacity}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            {isPending ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> {isFetchingAllowance ? '동기화 중...' : '승인 중...'}</>
-            ) : (
-              '승인 (Approve)'
-            )}
-          </button>
-        ) : (
-          <button 
-            onClick={handleInvest}
-            disabled={isPending || !isFunding || !units || requiredAmount <= BigInt(0) || isExceedingCapacity || remainingUnits === 0}
-            className="bg-gray-900 hover:bg-black text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            {isPending ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> {isFetchingAllowance ? '동기화 중...' : '처리 중...'}</>
-            ) : !isFunding ? (
-              '모집 종료'
-            ) : remainingUnits === 0 ? (
-              '모집 마감'
-            ) : (
-              '투자하기'
-            )}
-          </button>
-        )}
+        <button
+          onClick={handleInvest}
+          disabled={isPending || !isFunding || !hasValidUnits || isExceedingCapacity || remainingUnits === 0}
+          className="bg-gray-900 hover:bg-black text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        >
+          {isPending ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> {isFetchingAllowance ? '동기화 중...' : flowStatus === 'approving' ? 'mUSD 승인 중...' : '투자 처리 중...'}</>
+          ) : !isFunding ? (
+            '모집 종료'
+          ) : remainingUnits === 0 ? (
+            '모집 마감'
+          ) : (
+            '투자하기'
+          )}
+        </button>
       </div>
       
       <div className="mt-3 flex justify-between items-center">
@@ -195,6 +206,16 @@ export function InvestForm({ productId }: InvestFormProps) {
               잔여 구좌({remainingUnits})를 초과할 수 없습니다.
             </p>
           )}
+          {units && !hasValidUnits && (
+            <p className="text-xs text-red-500 font-bold">
+              1 이상의 정수 구좌를 입력해주세요.
+            </p>
+          )}
+          {needsApproval && hasValidUnits && !isPending && (
+            <p className="text-xs text-gray-500">
+              첫 투자에서는 mUSD 승인 후 투자 확인 요청이 이어집니다.
+            </p>
+          )}
         </div>
         {currentAllowance > BigInt(0) && (
           <p className="text-xs text-green-600 font-medium flex items-center gap-1">
@@ -203,11 +224,12 @@ export function InvestForm({ productId }: InvestFormProps) {
         )}
       </div>
       
-      {isConfirmed && (
+      {flowStatus === 'success' && (
         <p className="text-xs text-blue-600 mt-2 font-medium">
-          트랜잭션이 성공적으로 처리되었습니다!
+          투자가 완료되어 모집 현황에 반영되었습니다.
         </p>
       )}
+      {flowError && <p className="text-xs text-red-600 mt-2 font-medium">{flowError}</p>}
     </div>
   );
 }
