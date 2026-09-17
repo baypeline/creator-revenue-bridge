@@ -80,3 +80,9 @@
 - 추가 유틸리티: CI에서 게시된 GHCR 이미지를 로컬에서 수동/자동으로 풀하고 배포할 수 있는 `scripts/pull-and-deploy.ps1` 추가 및 워크플로 스크립트 검증 연동
 - 검증: PowerShell 구문 분석기 및 `setup-production-runner.ps1 -ConfigureEnvOnly` 실행으로 디렉터리·파일·ACL 권한 정상 적용 확인
 
+## CRB-DEP-012 — 운영 러너 배포 전 연결 점검
+
+- 문제: Base Sepolia manifest가 생성되기 전에는 deploy 작업이 생략되어 운영 runner의 Docker 접근 권한과 환경 파일 구성을 실제 GitHub Actions 실행 계정으로 확인하기 어려움
+- 영향: 최초 운영 배포 시점에 runner 서비스 계정의 Docker 접근 또는 환경 파일 권한 문제를 뒤늦게 발견할 가능성
+- 처리: 배포 없이 Docker daemon, Linux container 모드, Docker Compose, 운영 환경 파일과 Compose 구성을 검사하는 수동 `Production runner check` 워크플로 구성
+- 보안: `main` ref와 `production` 환경 승인을 통과한 작업만 `production` 라벨 runner에서 실행되도록 제한

@@ -70,6 +70,10 @@ Get-Service 'actions.runner.*'
 docker ps
 ```
 
+저장소에 운영 점검 워크플로가 반영된 뒤 GitHub의 `Actions → Production runner check → Run workflow`에서 `main`을 선택해 실행한다. 이 작업은 이미지를 내려받거나 컨테이너를 교체하지 않고, 실제 runner 서비스 계정에서 Docker daemon 접근, Linux container 모드, 운영 환경 파일과 Compose 설정을 확인한다. `production` 환경에 required reviewer가 있으면 승인 후 실행된다.
+
+환경 파일을 기본 경로가 아닌 곳에 만들었다면 실행 화면의 `environment_file`에 절대 경로를 입력한다. 기본 경로는 `C:\ProgramData\CreatorRevenueBridge\.env.production`이다. 안전을 위해 이 점검 작업은 `main`에서만 실행된다.
+
 GitHub의 `Settings → Environments`에 `production` 환경을 만든다. 실제 반영 전에 사람의 확인을 받으려면 이 환경에 required reviewer를 설정한다. 서버 환경 파일 경로를 기본값과 다르게 쓸 때만 `production` 환경 변수 `DEPLOY_ENV_FILE`을 등록한다.
 
 `main`에는 `Workflow`, `Contracts`, `Backend`, `Frontend` 상태 검사를 필수로 지정하고 직접 push를 제한하는 branch protection을 적용한다. self-hosted runner는 저장소 코드를 Docker 권한으로 실행하므로 신뢰된 `main` 커밋의 deploy 작업만 받도록 현재 워크플로의 분기 조건과 `production` 라벨을 유지한다.
