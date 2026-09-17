@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployLocal} from "../script/DeployLocal.s.sol";
+import {DemoDeploymentFactory} from "../src/DemoDeploymentFactory.sol";
 import {RevenueBridge} from "../src/RevenueBridge.sol";
 import {RevenueRightToken} from "../src/RevenueRightToken.sol";
 import {IRevenueBridge} from "../src/interfaces/IRevenueBridge.sol";
@@ -92,6 +93,10 @@ contract DeployLocalTest is Test {
         assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.settlementToken"), address(settlementToken));
         assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.revenueBridge"), address(bridge));
         assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.revenueRightToken"), address(rightToken));
+        address demoFactoryAddress = vm.parseJsonAddress(deploymentJson, ".contracts.demoFactory");
+        DemoDeploymentFactory.Deployment memory active = DemoDeploymentFactory(demoFactoryAddress).activeDeployment();
+        assertEq(active.revenueBridge, address(bridge));
+        assertEq(active.version, 1);
         assertEq(vm.parseJsonAddress(deploymentJson, ".accounts.creator"), creator);
         assertEq(vm.parseJsonAddress(deploymentJson, ".accounts.investor"), investor);
         assertEq(vm.parseJsonUint(deploymentJson, ".demo.offeringId"), demoOfferingId);

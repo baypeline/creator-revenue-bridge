@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {IRevenueBridge} from "../src/interfaces/IRevenueBridge.sol";
 import {RevenueBridge} from "../src/RevenueBridge.sol";
+import {RevenueRightTokenFactory} from "../src/RevenueRightTokenFactory.sol";
 import {MockSettlementToken} from "../src/mocks/MockSettlementToken.sol";
 
 contract RevenueBridgeSettlementTest is Test {
@@ -33,7 +34,9 @@ contract RevenueBridgeSettlementTest is Test {
         vm.warp(BASE_TIMESTAMP);
 
         settlementToken = new MockSettlementToken();
-        bridge = new RevenueBridge(settlementToken, address(this), "ipfs://revenue-rights/{id}.json");
+        bridge = new RevenueBridge(
+            settlementToken, address(this), "ipfs://revenue-rights/{id}.json", new RevenueRightTokenFactory()
+        );
 
         bridge.setInvestorAllowed(investor, true);
         bridge.setInvestorAllowed(secondInvestor, true);

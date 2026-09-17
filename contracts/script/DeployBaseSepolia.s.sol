@@ -7,7 +7,10 @@ import {console2} from "forge-std/console2.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {RevenueBridge} from "../src/RevenueBridge.sol";
+import {DemoDeploymentFactory} from "../src/DemoDeploymentFactory.sol";
+import {RevenueBridgeDeployer} from "../src/RevenueBridgeDeployer.sol";
 import {RevenueRightToken} from "../src/RevenueRightToken.sol";
+import {RevenueRightTokenFactory} from "../src/RevenueRightTokenFactory.sol";
 import {MockSettlementToken} from "../src/mocks/MockSettlementToken.sol";
 
 /// @notice Deploys the Base Sepolia contracts without creating offerings or funding accounts.
@@ -61,15 +64,41 @@ contract DeployBaseSepolia is Script {
             settlementToken = IERC20(config.configuredSettlementToken);
         }
 
-        bridge = new RevenueBridge(settlementToken, config.deployer, config.tokenBaseUri);
+        RevenueRightTokenFactory rightTokenFactory = new RevenueRightTokenFactory();
+        bridge = new RevenueBridge(settlementToken, config.deployer, config.tokenBaseUri, rightTokenFactory);
         rightToken = bridge.REVENUE_RIGHT_TOKEN();
 
         _configureRoles(bridge, config);
+        RevenueBridgeDeployer bridgeDeployer = new RevenueBridgeDeployer(rightTokenFactory);
+        DemoDeploymentFactory demoFactory = new DemoDeploymentFactory(
+            config.admin,
+            bridgeDeployer,
+            DemoDeploymentFactory.DemoConfig({
+                admin: config.admin,
+                issuer: config.issuer,
+                settler: config.settler,
+                creator: config.admin,
+                investor: config.admin,
+                tokenBaseUri: config.tokenBaseUri
+            }),
+            address(settlementToken),
+            address(bridge),
+            address(rightToken)
+        );
 
         vm.stopBroadcast();
 
         if (config.writeManifest) {
-            _writeDeploymentManifest(settlementToken, bridge, rightToken, config, deployedMockSettlementToken);
+            _writeDeploymentManifest(
+                settlementToken,
+                bridge,
+                rightToken,
+                rightTokenFactory,
+                bridgeDeployer,
+                demoFactory,
+                config,
+                deployedMockSettlementToken
+            );
         }
         _logDeployment(settlementToken, bridge, rightToken, config, deployedMockSettlementToken);
     }
@@ -127,6 +156,9 @@ contract DeployBaseSepolia is Script {
         IERC20 settlementToken,
         RevenueBridge bridge,
         RevenueRightToken rightToken,
+        RevenueRightTokenFactory rightTokenFactory,
+        RevenueBridgeDeployer bridgeDeployer,
+        DemoDeploymentFactory demoFactory,
         DeploymentConfig memory config,
         bool deployedMockSettlementToken
     ) private {
@@ -134,7 +166,10 @@ contract DeployBaseSepolia is Script {
             "baseSepoliaContracts", "settlementToken", address(settlementToken)
         );
         vm.serializeAddress("baseSepoliaContracts", "revenueBridge", address(bridge));
-        contractsJson = vm.serializeAddress("baseSepoliaContracts", "revenueRightToken", address(rightToken));
+        vm.serializeAddress("baseSepoliaContracts", "revenueRightToken", address(rightToken));
+        vm.serializeAddress("baseSepoliaContracts", "revenueRightTokenFactory", address(rightTokenFactory));
+        vm.serializeAddress("baseSepoliaContracts", "revenueBridgeDeployer", address(bridgeDeployer));
+        contractsJson = vm.serializeAddress("baseSepoliaContracts", "demoFactory", address(demoFactory));
 
         string memory rolesJson = vm.serializeAddress("baseSepoliaRoles", "admin", config.admin);
         vm.serializeAddress("baseSepoliaRoles", "issuer", config.issuer);

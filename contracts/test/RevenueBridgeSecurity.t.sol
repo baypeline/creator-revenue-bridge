@@ -10,6 +10,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {IRevenueBridge} from "../src/interfaces/IRevenueBridge.sol";
 import {RevenueBridge} from "../src/RevenueBridge.sol";
+import {RevenueRightTokenFactory} from "../src/RevenueRightTokenFactory.sol";
 
 contract ToggleFeeToken is ERC20 {
     uint256 internal constant FEE_BPS = 100;
@@ -125,7 +126,9 @@ contract RevenueBridgeSecurityTest is Test {
     function setUp() public {
         vm.warp(BASE_TIMESTAMP);
         settlementToken = new ToggleFeeToken();
-        bridge = new RevenueBridge(settlementToken, address(this), "ipfs://revenue-rights/{id}.json");
+        bridge = new RevenueBridge(
+            settlementToken, address(this), "ipfs://revenue-rights/{id}.json", new RevenueRightTokenFactory()
+        );
 
         bridge.setInvestorAllowed(investor, true);
         settlementToken.mint(investor, TARGET_RAISE);

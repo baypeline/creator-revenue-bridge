@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {IRevenueBridge} from "../src/interfaces/IRevenueBridge.sol";
 import {RevenueBridge} from "../src/RevenueBridge.sol";
+import {RevenueRightTokenFactory} from "../src/RevenueRightTokenFactory.sol";
 import {RevenueRightToken} from "../src/RevenueRightToken.sol";
 import {MockSettlementToken} from "../src/mocks/MockSettlementToken.sol";
 
@@ -115,7 +116,9 @@ contract RevenueBridgeInvariantTest is Test {
         investors = [makeAddr("firstInvestor"), makeAddr("secondInvestor")];
 
         settlementToken = new MockSettlementToken();
-        bridge = new RevenueBridge(settlementToken, address(this), "ipfs://revenue-rights/{id}.json");
+        bridge = new RevenueBridge(
+            settlementToken, address(this), "ipfs://revenue-rights/{id}.json", new RevenueRightTokenFactory()
+        );
         rightToken = bridge.REVENUE_RIGHT_TOKEN();
 
         for (uint256 i = 0; i < investors.length; ++i) {

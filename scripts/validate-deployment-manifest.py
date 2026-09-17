@@ -76,8 +76,11 @@ def main() -> None:
         require_address(contracts, "settlementToken", "contracts"),
         require_address(contracts, "revenueBridge", "contracts"),
         require_address(contracts, "revenueRightToken", "contracts"),
+        require_address(contracts, "revenueRightTokenFactory", "contracts"),
+        require_address(contracts, "revenueBridgeDeployer", "contracts"),
+        require_address(contracts, "demoFactory", "contracts"),
     }
-    if len(contract_addresses) != 3:
+    if len(contract_addresses) != 6:
         fail("contract addresses must be distinct")
 
     require_address(manifest, "deployer", "root")

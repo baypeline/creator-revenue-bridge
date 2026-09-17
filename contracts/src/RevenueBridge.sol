@@ -9,6 +9,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 import {IRevenueBridge} from "./interfaces/IRevenueBridge.sol";
 import {RevenueRightToken} from "./RevenueRightToken.sol";
+import {RevenueRightTokenFactory} from "./RevenueRightTokenFactory.sol";
 
 /// @title RevenueBridge
 /// @notice Manages revenue-right funding, settlement, and investor claims.
@@ -58,13 +59,19 @@ contract RevenueBridge is IRevenueBridge, AccessControl, ReentrancyGuard {
     mapping(uint256 offeringId => mapping(address investor => uint256 amount)) public claimed;
     mapping(address investor => bool allowed) public allowedInvestors;
 
-    constructor(IERC20 settlementToken_, address admin, string memory tokenBaseUri) {
-        if (address(settlementToken_) == address(0) || admin == address(0)) {
+    constructor(
+        IERC20 settlementToken_,
+        address admin,
+        string memory tokenBaseUri,
+        RevenueRightTokenFactory rightTokenFactory
+    ) {
+        if (address(settlementToken_) == address(0) || admin == address(0) || address(rightTokenFactory) == address(0))
+        {
             revert InvalidAddress();
         }
 
         SETTLEMENT_TOKEN = settlementToken_;
-        REVENUE_RIGHT_TOKEN = new RevenueRightToken(address(this), tokenBaseUri);
+        REVENUE_RIGHT_TOKEN = rightTokenFactory.deploy(address(this), tokenBaseUri);
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ISSUER_ROLE, admin);

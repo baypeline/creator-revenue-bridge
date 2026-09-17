@@ -5,7 +5,10 @@ import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
 
 import {RevenueBridge} from "../src/RevenueBridge.sol";
+import {DemoDeploymentFactory} from "../src/DemoDeploymentFactory.sol";
+import {RevenueBridgeDeployer} from "../src/RevenueBridgeDeployer.sol";
 import {RevenueRightToken} from "../src/RevenueRightToken.sol";
+import {RevenueRightTokenFactory} from "../src/RevenueRightTokenFactory.sol";
 import {IRevenueBridge} from "../src/interfaces/IRevenueBridge.sol";
 import {MockSettlementToken} from "../src/mocks/MockSettlementToken.sol";
 
@@ -64,7 +67,8 @@ contract DeployLocal is Script {
         vm.startBroadcast(config.deployerPrivateKey);
 
         settlementToken = new MockSettlementToken();
-        bridge = new RevenueBridge(settlementToken, config.deployer, config.tokenBaseUri);
+        RevenueRightTokenFactory rightTokenFactory = new RevenueRightTokenFactory();
+        bridge = new RevenueBridge(settlementToken, config.deployer, config.tokenBaseUri, rightTokenFactory);
         rightToken = bridge.REVENUE_RIGHT_TOKEN();
 
         if (config.issuer != config.deployer) {
@@ -121,9 +125,28 @@ contract DeployLocal is Script {
         );
         demoOfferingId = demo.id;
 
+        RevenueBridgeDeployer bridgeDeployer = new RevenueBridgeDeployer(rightTokenFactory);
+        DemoDeploymentFactory demoFactory = new DemoDeploymentFactory(
+            config.deployer,
+            bridgeDeployer,
+            DemoDeploymentFactory.DemoConfig({
+                admin: config.deployer,
+                issuer: config.issuer,
+                settler: config.settler,
+                creator: config.creator,
+                investor: config.investor,
+                tokenBaseUri: config.tokenBaseUri
+            }),
+            address(settlementToken),
+            address(bridge),
+            address(rightToken)
+        );
+
         vm.stopBroadcast();
 
-        _writeDeploymentManifest(settlementToken, bridge, rightToken, config, demo);
+        _writeDeploymentManifest(
+            settlementToken, bridge, rightToken, rightTokenFactory, bridgeDeployer, demoFactory, config, demo
+        );
         _logDeployment(settlementToken, bridge, rightToken, config, demo);
     }
 
@@ -191,12 +214,18 @@ contract DeployLocal is Script {
         MockSettlementToken settlementToken,
         RevenueBridge bridge,
         RevenueRightToken rightToken,
+        RevenueRightTokenFactory rightTokenFactory,
+        RevenueBridgeDeployer bridgeDeployer,
+        DemoDeploymentFactory demoFactory,
         LocalConfig memory config,
         DemoOffering memory demo
     ) private {
         string memory contractsJson = vm.serializeAddress("contracts", "settlementToken", address(settlementToken));
         vm.serializeAddress("contracts", "revenueBridge", address(bridge));
-        contractsJson = vm.serializeAddress("contracts", "revenueRightToken", address(rightToken));
+        vm.serializeAddress("contracts", "revenueRightToken", address(rightToken));
+        vm.serializeAddress("contracts", "revenueRightTokenFactory", address(rightTokenFactory));
+        vm.serializeAddress("contracts", "revenueBridgeDeployer", address(bridgeDeployer));
+        contractsJson = vm.serializeAddress("contracts", "demoFactory", address(demoFactory));
 
         string memory accountsJson = vm.serializeAddress("accounts", "admin", config.deployer);
         vm.serializeAddress("accounts", "issuer", config.issuer);

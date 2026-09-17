@@ -39,6 +39,8 @@ docker compose -f "$compose_file" run --rm --no-deps forge \
     inspect src/RevenueRightToken.sol:RevenueRightToken abi --json > "$temp_dir/RevenueRightToken.abi.json"
 docker compose -f "$compose_file" run --rm --no-deps forge \
     inspect src/mocks/MockSettlementToken.sol:MockSettlementToken abi --json > "$temp_dir/MockSettlementToken.abi.json"
+docker compose -f "$compose_file" run --rm --no-deps forge \
+    inspect src/DemoDeploymentFactory.sol:DemoDeploymentFactory abi --json > "$temp_dir/DemoDeploymentFactory.abi.json"
 
 for abi_file in "$temp_dir"/*.abi.json; do
     if [ ! -s "$abi_file" ]; then

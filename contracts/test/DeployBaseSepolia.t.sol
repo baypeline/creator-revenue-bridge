@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployBaseSepolia} from "../script/DeployBaseSepolia.s.sol";
+import {DemoDeploymentFactory} from "../src/DemoDeploymentFactory.sol";
 import {RevenueBridge} from "../src/RevenueBridge.sol";
 import {RevenueRightToken} from "../src/RevenueRightToken.sol";
 import {MockSettlementToken} from "../src/mocks/MockSettlementToken.sol";
@@ -39,14 +40,14 @@ contract DeployBaseSepoliaTest is Test {
         string memory deploymentJson = vm.readFile(deploymentPath);
         assertEq(vm.parseJsonUint(deploymentJson, ".chainId"), 84_532);
         assertEq(vm.parseJsonString(deploymentJson, ".network"), "base-sepolia");
-        assertEq(
-            vm.parseJsonString(deploymentJson, ".tokenBaseUri"),
-            "https://example.test/revenue-rights/{id}.json"
-        );
+        assertEq(vm.parseJsonString(deploymentJson, ".tokenBaseUri"), "https://example.test/revenue-rights/{id}.json");
         assertEq(vm.parseJsonAddress(deploymentJson, ".deployer"), deployer);
         assertTrue(vm.parseJsonBool(deploymentJson, ".usesMockSettlementToken"));
         assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.revenueBridge"), address(bridge));
         assertEq(vm.parseJsonAddress(deploymentJson, ".contracts.revenueRightToken"), address(rightToken));
+        address demoFactoryAddress = vm.parseJsonAddress(deploymentJson, ".contracts.demoFactory");
+        DemoDeploymentFactory.Deployment memory active = DemoDeploymentFactory(demoFactoryAddress).activeDeployment();
+        assertEq(active.revenueBridge, address(bridge));
         assertEq(vm.parseJsonAddress(deploymentJson, ".roles.admin"), admin);
         assertEq(vm.parseJsonAddress(deploymentJson, ".roles.issuer"), issuer);
         assertEq(vm.parseJsonAddress(deploymentJson, ".roles.settler"), settler);
