@@ -91,5 +91,6 @@
 
 - 문제: Windows 11 기본 환경에는 Windows PowerShell만 설치되어 있어 PowerShell 7 실행기인 `pwsh`를 찾지 못함
 - 영향: 운영 runner가 작업을 정상 수신해도 사전 점검과 실제 배포 단계가 명령 실행 전에 실패
-- 처리: Windows self-hosted runner에서 실행되는 점검, GHCR 로그인과 배포 단계의 shell을 기본 `powershell`로 변경
+- 추가 문제: 운영 서버의 PowerShell 실행 정책이 GitHub Actions가 생성한 임시 `.ps1` 파일 실행을 차단
+- 처리: Windows self-hosted runner에서 실행되는 점검, GHCR 로그인과 배포 단계를 기본 `powershell` 및 프로세스 한정 `ExecutionPolicy Bypass`로 변경
 - 검증: `Production runner check` 실제 재실행으로 Docker와 Compose 접근 확인 예정
