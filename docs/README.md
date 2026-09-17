@@ -9,6 +9,7 @@
 | [컨트랙트 보안 검증](contract-security-review.md) | 발견 사항, 공격 시나리오, 회계 불변조건과 잔여 위험 |
 | [개발 연동 기록](development-integration-notes.md) | 애플리케이션과 로컬 체인 연동 중 확인한 문제와 처리 상태 |
 | [배포 준비 기록](deployment-notes.md) | Base Sepolia와 운영 이미지 배포 절차, 발견 사항과 잔여 작업 |
+| [운영 배포 가이드](production-deployment.md) | GHCR 이미지 게시, self-hosted runner와 실패 시 복구 절차 |
 | [법률 및 리서치 노트](legal-and-research-notes.md) | 증권성·권리 집행 관련 검토 과제와 연구 아이디어 |
 
 ## 기록 원칙

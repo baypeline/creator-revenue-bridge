@@ -180,6 +180,8 @@ creator-revenue-bridge/
 
 구현 과정에서 확인한 문제와 검증 기록은 [개발 기록](docs/README.md)에서 관리한다.
 
+운영 이미지 게시, 외부 서버의 self-hosted runner 구성, 자동 복구와 최초 배포 순서는 [운영 배포 가이드](docs/production-deployment.md)에서 확인할 수 있다.
+
 ## 개발 환경 실행
 
 ### Docker Compose
