@@ -63,3 +63,11 @@
 - 영향: CI용 Anvil 주소로 빌드한 이미지를 운영에 게시하면 Base Sepolia에서 잘못된 컨트랙트 호출 발생
 - 처리: `84532.json`의 체인·네트워크·metadata URI·컨트랙트·권한 주소와 비밀 필드 부재를 검증한 경우에만 GHCR 게시 및 서버 배포 작업 개방
 - 배포 방식: 커밋 SHA 불변 태그로 frontend와 backend 이미지를 함께 교체하고 health 실패 시 직전 SHA 태그로 복구
+
+## CRB-DEP-010 — Windows 운영 서버 배포 실행 환경
+
+- 상태: 반영
+- 운영 환경: Windows x64의 Docker Desktop WSL 2 backend와 Linux container 모드
+- 처리: deploy 작업의 runner 라벨을 Windows로 변경하고 PowerShell 기반 이미지 교체 및 자동 복구 스크립트 구성
+- 포트: Windows loopback의 frontend `5386`, backend `8081` 사용
+- 운영 제약: self-hosted runner를 Docker Desktop을 실행하는 동일 Windows 계정으로 구성하고 서비스 계정에서 Docker CLI 접근 확인 필요

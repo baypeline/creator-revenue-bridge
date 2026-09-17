@@ -27,24 +27,36 @@ flowchart LR
 
 ## 서버 준비
 
-배포 대상은 Linux x64 서버를 기준으로 한다. 서버에 최신 Docker Engine, Docker Compose v2, Git과 `curl`을 설치한다. 배포 작업을 실행할 전용 일반 사용자에게만 Docker 실행 권한을 부여한다.
+배포 대상은 Windows x64 PC를 기준으로 한다. frontend와 backend 이미지는 Linux 이미지이므로 Docker Desktop에서 WSL 2 backend와 Linux container 모드를 사용해야 한다. Windows 10 또는 Windows 11에서 다음 명령이 모두 성공하는지 PowerShell에서 확인한다.
 
-GitHub 저장소의 `Settings → Actions → Runners`에서 Linux x64 self-hosted runner를 추가한다. GitHub 화면이 제공하는 최신 설치 명령을 서버에서 실행하고 runner 구성 시 `production` 사용자 정의 라벨을 추가한다.
-
-```bash
-./config.sh --url https://github.com/baypeline/creator-revenue-bridge \
-  --token <GitHub가 일회성으로 발급한 토큰> \
-  --labels production
-sudo ./svc.sh install
-sudo ./svc.sh start
+```powershell
+wsl.exe --status
+docker version
+docker compose version
+docker info --format '{{.OSType}}'
 ```
 
-runner 사용자가 Docker를 실행할 수 있어야 한다. 그룹 변경 후에는 runner 서비스를 다시 시작한다.
+마지막 명령은 `linux`를 출력해야 한다. Docker Desktop은 Windows Server 제품군을 지원하지 않으므로 운영 PC가 Windows Server라면 Linux VM을 배포 대상으로 사용하도록 구조를 변경해야 한다.
 
-```bash
-sudo usermod -aG docker <runner-user>
-sudo ./svc.sh stop
-sudo ./svc.sh start
+GitHub 저장소의 `Settings → Actions → Runners`에서 Windows x64 self-hosted runner를 추가한다. 관리자 PowerShell에서 `C:\actions-runner`를 만들고 GitHub 화면이 제공하는 최신 runner를 이 경로에 설치한다. runner 구성 시 `production` 사용자 정의 라벨을 추가한다.
+
+```powershell
+Set-Location C:\actions-runner
+.\config.cmd `
+  --url https://github.com/baypeline/creator-revenue-bridge `
+  --token <GitHub가 일회성으로 발급한 토큰> `
+  --labels production
+```
+
+구성 질문에서는 runner를 Windows 서비스로 설치하고, Docker Desktop을 실행하는 Windows 계정을 서비스 계정으로 지정한다. Docker Desktop의 WSL 2 컨테이너와 이미지는 Windows 계정 사이에서 공유되지 않으므로 다른 서비스 계정을 사용하면 deploy 작업에서 Docker daemon에 접근하지 못할 수 있다.
+
+Docker Desktop은 해당 Windows 사용자가 로그인한 뒤 실행되는 데스크톱 애플리케이션이다. 재부팅 후 무인 배포가 필요하면 이 계정의 로그인·Docker Desktop 자동 시작 정책을 함께 구성하고, runner 서비스가 배포 전에 `docker version`을 실행할 수 있는지 확인한다.
+
+runner 등록을 마친 뒤 서비스와 Docker 접근을 확인한다.
+
+```powershell
+Get-Service 'actions.runner.*'
+docker ps
 ```
 
 GitHub의 `Settings → Environments`에 `production` 환경을 만든다. 실제 반영 전에 사람의 확인을 받으려면 이 환경에 required reviewer를 설정한다. 서버 환경 파일 경로를 기본값과 다르게 쓸 때만 `production` 환경 변수 `DEPLOY_ENV_FILE`을 등록한다.
@@ -55,11 +67,21 @@ GitHub의 `Settings → Environments`에 `production` 환경을 만든다. 실�
 
 서버에서 다음 디렉터리와 파일을 만든다. 저장소의 `deploy/production.env.example`을 복사한 뒤 실제 RPC 주소를 입력한다.
 
-```bash
-sudo install -d -m 750 -o <runner-user> -g <runner-group> /opt/creator-revenue-bridge
-sudo install -m 600 -o <runner-user> -g <runner-group> \
-  deploy/production.env.example \
-  /opt/creator-revenue-bridge/.env.production
+```powershell
+$deployDirectory = 'C:\ProgramData\CreatorRevenueBridge'
+New-Item -ItemType Directory -Force $deployDirectory
+Copy-Item `
+  .\deploy\production.env.example `
+  "$deployDirectory\.env.production"
+notepad "$deployDirectory\.env.production"
+```
+
+환경 파일에는 RPC 인증 정보가 들어가므로 runner 계정과 SYSTEM만 읽도록 ACL을 제한한다.
+
+```powershell
+$envFile = 'C:\ProgramData\CreatorRevenueBridge\.env.production'
+icacls $envFile /inheritance:r
+icacls $envFile /grant:r "${env:USERNAME}:(F)" 'SYSTEM:(F)'
 ```
 
 `WEB3_RPC_URL`에는 외부에 공개하지 않는 인증된 Base Sepolia RPC 주소를 넣는다. 배포자 개인키는 컨트랙트 배포 때만 개발 PC에서 사용하며 운영 서버와 GitHub Actions에는 저장하지 않는다. 이미지 태그는 GitHub Actions가 매 배포마다 주입하므로 환경 파일에 고정하지 않는다.
@@ -68,7 +90,7 @@ GHCR 패키지가 private이면 repository의 `GITHUB_TOKEN`이 패키지를 읽
 
 ## 도메인 연결
 
-운영 Compose는 frontend와 backend 포트를 기본적으로 `127.0.0.1`에만 연다. 서버의 기존 Nginx나 Caddy가 `https://pricetext.store` 요청을 frontend의 `127.0.0.1:3000`으로 전달해야 한다. 브라우저의 백엔드 요청과 수익권 metadata 요청은 모두 frontend 경로를 통하므로 backend의 8080 포트를 인터넷에 공개할 필요가 없다.
+운영 Compose는 frontend `5386`과 backend `8081`을 Windows의 `127.0.0.1`에만 연다. 서버의 기존 리버스 프록시가 `https://pricetext.store` 요청을 frontend의 `127.0.0.1:5386`으로 전달해야 한다. 브라우저의 백엔드 요청과 수익권 metadata 요청은 모두 frontend 경로를 통하므로 backend의 `8081` 포트를 인터넷에 공개할 필요가 없다.
 
 Nginx를 사용한다면 핵심 upstream 설정은 다음과 같다. 인증서와 HTTP에서 HTTPS로의 전환은 서버의 기존 인증서 정책에 맞춰 구성한다.
 
@@ -78,7 +100,7 @@ server {
     server_name pricetext.store;
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:5386;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -103,27 +125,27 @@ server {
 
 배포 후 외부와 서버 내부에서 다음 경로를 확인한다.
 
-```bash
-curl --fail https://pricetext.store/api/health
-curl --fail https://pricetext.store/api/revenue-rights/1.json
-curl --fail http://127.0.0.1:8080/api/health
+```powershell
+curl.exe --fail https://pricetext.store/api/health
+curl.exe --fail https://pricetext.store/api/revenue-rights/1.json
+curl.exe --fail http://127.0.0.1:8081/api/health
 ```
 
 현재 실행 이미지와 health 상태는 Docker 명령으로 확인한다.
 
-```bash
+```powershell
 docker ps --filter label=com.docker.compose.project=creator-revenue-bridge
-docker inspect --format '{{.Config.Image}} {{.State.Health.Status}}' \
-  creator-revenue-bridge-frontend-1 \
+docker inspect --format '{{.Config.Image}} {{.State.Health.Status}}' `
+  creator-revenue-bridge-frontend-1 `
   creator-revenue-bridge-backend-1
 ```
 
 자동 복구 이후에도 문제가 남거나 과거 버전으로 직접 되돌려야 하면 서버의 checkout에서 이전 SHA 태그를 지정한다.
 
-```bash
-./scripts/deploy-production.sh \
-  --tag sha-<되돌릴-40자리-커밋> \
-  --env-file /opt/creator-revenue-bridge/.env.production
+```powershell
+.\scripts\deploy-production.ps1 `
+  -Tag sha-<되돌릴-40자리-커밋> `
+  -EnvFile C:\ProgramData\CreatorRevenueBridge\.env.production
 ```
 
 첫 배포에는 이전 이미지가 없으므로 자동 복구할 대상도 없다. 배포 스크립트는 사용 중인 이전 이미지를 자동 삭제하지 않으며, 안정화 확인 후 운영자가 사용하지 않는 이미지를 별도로 정리한다.

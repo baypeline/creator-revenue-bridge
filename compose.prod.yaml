@@ -9,7 +9,7 @@ services:
       NODE_ENV: production
       PORT: 3000
     ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-3000}:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-5386}:3000"
     init: true
     restart: unless-stopped
     depends_on:
@@ -36,7 +36,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       WEB3_RPC_URL: ${WEB3_RPC_URL:?WEB3_RPC_URL must be set for production}
     ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8080}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8081}:8080"
     init: true
     restart: unless-stopped
     healthcheck:
