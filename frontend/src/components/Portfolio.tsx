@@ -15,7 +15,7 @@ export function Portfolio() {
     contracts: address
       ? products.map((product) => ({
           address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
-          abi: RevenueBridgeABI,
+          abi: RevenueBridgeABI as any,
           functionName: 'investedUnits',
           args: [BigInt(product.offeringId), address],
         }))

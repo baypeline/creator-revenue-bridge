@@ -79,7 +79,7 @@ export function ProductCard({ productId }: { productId: string }) {
             <div className="flex items-center gap-2 text-gray-600 text-xs font-bold mb-1 uppercase tracking-wider">
               <Calendar className="w-4 h-4" /> 정산 만기일
             </div>
-            <div className="text-xl font-bold text-gray-900 mt-1">
+            <div className="text-xl font-bold text-gray-900 mt-1" suppressHydrationWarning>
               {new Date(product.terms.revenueEnd).toLocaleDateString('ko-KR')}
             </div>
           </div>
