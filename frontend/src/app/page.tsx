@@ -12,10 +12,6 @@ export default function Home() {
     <main className="flex min-h-[calc(100svh-80px)] items-center overflow-hidden bg-white">
       <section className="mx-auto grid w-full max-w-6xl items-center gap-14 px-5 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.08fr_0.92fr] lg:gap-20 lg:py-24">
         <div>
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-extrabold text-blue-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-            Base Sepolia에서 검증 가능한 수익권
-          </div>
           <h1 className="max-w-3xl text-[42px] font-black leading-[1.12] tracking-[-0.055em] text-gray-950 sm:text-6xl lg:text-[68px]">
             크리에이터의<br />내일 수익을<br /><span className="text-blue-700">오늘의 자산으로</span>
           </h1>
