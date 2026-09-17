@@ -1,24 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { useProducts } from '../hooks/useProduct';
 import { ProductCardMini } from './ProductCardMini';
 import { ProductCard } from './ProductCard';
-import { Search, X } from 'lucide-react';
+
+const statuses = [
+  { id: 'all', label: '전체' },
+  { id: 'funding', label: '모집 중' },
+  { id: 'active', label: '운영 중' },
+  { id: 'closed', label: '정산 완료' },
+];
 
 export function Marketplace() {
   const { products, isLoading, isError } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <span className="text-gray-400 font-medium animate-pulse">마켓플레이스 불러오는 중...</span>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!selectedProductId) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedProductId(null);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedProductId]);
+
+  if (isLoading) return <div className="flex h-64 items-center justify-center text-sm font-semibold text-gray-400 animate-pulse">상품 정보를 불러오는 중입니다.</div>;
 
   if (isError) {
     return (
@@ -29,92 +44,62 @@ export function Marketplace() {
     );
   }
 
-  // 필터링 로직
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.title.includes(searchQuery) || product.creator.name.includes(searchQuery);
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = !normalizedQuery || product.title.toLowerCase().includes(normalizedQuery) || product.creator.name.toLowerCase().includes(normalizedQuery);
     const matchesStatus = selectedStatus === 'all' || product.status.toLowerCase() === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
   return (
-    <div>
-      {/* 1. 검색 및 필터 영역 */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 tracking-tight">수익권 마켓플레이스</h2>
-        
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm transition-all"
-              placeholder="크리에이터 이름이나 상품명을 검색해보세요"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-            {['all', 'funding', 'active', 'closed'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setSelectedStatus(status)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors border ${
-                  selectedStatus === status 
-                    ? 'bg-gray-900 text-white border-gray-900 shadow-md' 
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                {status === 'all' ? '전체 보기' : 
-                 status === 'funding' ? '모집 중' : 
-                 status === 'active' ? '운영 중' : '정산 완료'}
-              </button>
-            ))}
-          </div>
+    <section>
+      <header className="mb-10 max-w-3xl border-l-[3px] border-blue-600 pl-5 sm:pl-7">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-blue-700">Revenue rights marketplace</p>
+        <h2 className="text-3xl font-black tracking-[-0.04em] text-gray-950 sm:text-[40px] sm:leading-tight">크리에이터 수익을<br className="sm:hidden" /> 투자 기회로 만나다</h2>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">모집 현황과 수익 배분 조건을 비교하고, 온체인으로 발행된 수익권에 투자하세요.</p>
+      </header>
+
+      <div className="mb-7 flex flex-col gap-4 border-y border-gray-200 py-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative w-full lg:max-w-md">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input type="search" className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50" placeholder="상품명 또는 크리에이터 검색" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
+          <SlidersHorizontal className="mr-1 hidden h-4 w-4 text-gray-400 sm:block" />
+          {statuses.map((status) => (
+            <button key={status.id} type="button" onClick={() => setSelectedStatus(status.id)} className={`whitespace-nowrap rounded-full border px-4 py-2 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selectedStatus === status.id ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:text-gray-950'}`}>
+              {status.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* 2. 상품 그리드 영역 */}
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm font-bold text-gray-900">상품 <span className="numeric text-blue-700">{filteredProducts.length}</span>건</p>
+        <p className="hidden text-xs text-gray-400 sm:block">모집 진행률 기준 실시간 온체인 정보</p>
+      </div>
+
       {filteredProducts.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-gray-500 font-medium">현재 조건에 맞는 상품이 없습니다.</p>
-          <button 
-            onClick={() => { setSearchQuery(''); setSelectedStatus('all'); }}
-            className="mt-4 text-blue-600 font-semibold hover:underline"
-          >
-            초기화하기
-          </button>
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 py-20 text-center">
+          <p className="font-semibold text-gray-600">조건에 맞는 상품이 없습니다.</p>
+          <button type="button" onClick={() => { setSearchQuery(''); setSelectedStatus('all'); }} className="mt-4 text-sm font-bold text-blue-700 hover:underline">검색 조건 초기화</button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map(product => (
-            <ProductCardMini 
-              key={product.offeringId} 
-              product={product} 
-              onClick={(id) => setSelectedProductId(id.toString())} 
-            />
-          ))}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredProducts.map((product) => <ProductCardMini key={product.offeringId} product={product} onClick={(id) => setSelectedProductId(id.toString())} />)}
         </div>
       )}
 
-      {/* 3. 모달 오버레이 (상세 화면) */}
       {selectedProductId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm overflow-y-auto">
-          <div className="relative w-full max-w-2xl my-auto animate-[fadeIn_0.2s_ease-out]">
-            {/* 닫기 버튼 */}
-            <button 
-              onClick={() => setSelectedProductId(null)}
-              className="absolute -top-4 -right-4 z-10 bg-white text-gray-900 rounded-full p-2 shadow-xl hover:bg-gray-100 transition-colors border border-gray-200"
-            >
-              <X className="w-5 h-5" />
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/55 px-3 py-5 backdrop-blur-sm sm:px-6 sm:py-10" role="dialog" aria-modal="true" aria-label="상품 상세 정보" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectedProductId(null); }}>
+          <div className="relative mx-auto w-full max-w-5xl">
+            <button type="button" onClick={() => setSelectedProductId(null)} className="absolute right-3 top-3 z-20 rounded-full border border-white/30 bg-slate-950/70 p-2.5 text-white shadow-lg backdrop-blur transition hover:bg-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-4 sm:top-4" aria-label="상품 상세 닫기">
+              <X className="h-5 w-5" />
             </button>
-            
-            {/* 상세 카드 컴포넌트 재활용 */}
             <ProductCard productId={selectedProductId} />
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

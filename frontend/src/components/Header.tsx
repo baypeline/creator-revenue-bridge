@@ -16,28 +16,28 @@ const tabs: Array<{ id: MainTab; label: string }> = [
 
 export function Header({ activeTab, onTabChange }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50">
-      <div className="mx-auto flex min-h-20 max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-7">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-[#f5f7fb]/95 backdrop-blur-xl">
+      <div className="mx-auto flex min-h-20 max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-8">
           <div className="min-w-0">
-            <h1 className="text-base font-black tracking-tight text-gray-950 sm:text-lg">
+            <h1 className="text-base font-black tracking-[-0.035em] text-gray-950 sm:text-lg">
               <span className="sm:hidden">CRB</span>
               <span className="hidden sm:inline">Creator Revenue Bridge</span>
             </h1>
-            <p className="mt-0.5 hidden text-xs font-medium text-gray-500 md:block">크리에이터 수익을 오늘의 자산으로</p>
+            <p className="mt-0.5 hidden text-[11px] font-semibold text-gray-500 md:block">크리에이터 수익을 오늘의 자산으로</p>
           </div>
 
-          <nav aria-label="주요 메뉴" className="hidden rounded-xl border border-gray-200 bg-white/80 p-1 shadow-sm sm:flex">
+          <nav aria-label="주요 메뉴" className="hidden items-center gap-1 sm:flex">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 aria-pressed={activeTab === tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                className={`rounded-lg px-3.5 py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                   activeTab === tab.id
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                    ? 'bg-white text-blue-700 shadow-sm ring-1 ring-gray-200'
+                    : 'text-gray-500 hover:bg-white/70 hover:text-gray-900'
                 }`}
               >
                 {tab.label}
@@ -49,17 +49,17 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
         <WalletConnect />
       </div>
 
-      <nav aria-label="모바일 주요 메뉴" className="flex gap-2 border-t border-gray-200 px-4 py-3 sm:hidden">
+      <nav aria-label="모바일 주요 메뉴" className="flex gap-2 border-t border-slate-200 px-5 py-2.5 sm:hidden">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             aria-pressed={activeTab === tab.id}
             onClick={() => onTabChange(tab.id)}
-            className={`flex-1 rounded-lg border py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            className={`flex-1 rounded-lg py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
               activeTab === tab.id
-                ? 'border-gray-900 bg-gray-900 text-white'
-                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                ? 'bg-white text-blue-700 shadow-sm ring-1 ring-gray-200'
+                : 'text-gray-600 hover:bg-white/70'
             }`}
           >
             {tab.label}

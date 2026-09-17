@@ -15,7 +15,7 @@ export default function Home() {
     <div className="flex min-h-screen flex-col bg-white font-sans text-gray-900">
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 bg-white px-6 py-12">
+      <main className="mx-auto w-full max-w-6xl flex-1 bg-white px-5 py-10 sm:px-6 sm:py-14">
         {activeTab === 'marketplace' ? <Marketplace /> : <Portfolio />}
       </main>
 

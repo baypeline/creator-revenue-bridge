@@ -8,6 +8,7 @@ import { OfferingResponse } from '../types/product';
 import { formatUnits } from 'viem';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { useEffect } from 'react';
+import { formatNumber } from '../lib/format';
 
 interface PortfolioCardProps {
   product: OfferingResponse;
@@ -51,6 +52,8 @@ export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw);
   const investedAmount = investedUnits * unitPriceRaw;
   const claimableAmount = claimableData ? (claimableData as bigint) : BigInt(0);
+  const investedAmountDisplay = formatNumber(Number(formatUnits(investedAmount, 6)));
+  const claimableAmountDisplay = formatNumber(Number(formatUnits(claimableAmount, 6)));
   const offering = offeringData as { status?: number } | undefined;
   const statusLabel = offeringStatusLabel(offering?.status, product.statusLabel || '운영 중');
 
@@ -84,11 +87,11 @@ export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
         <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
           <div>
             <p className="text-xs text-gray-500 mb-1">보유 구좌</p>
-            <p className="font-bold text-gray-900">{investedUnits.toString()} 구좌</p>
+            <p className="numeric font-bold text-gray-900">{formatNumber(investedUnits, 0)} 구좌</p>
           </div>
           <div>
             <p className="text-xs text-gray-500 mb-1">투자 원금</p>
-            <p className="font-bold text-gray-900">{formatUnits(investedAmount, 6)} mUSD</p>
+            <p className="numeric font-bold text-gray-900">{investedAmountDisplay} mUSD</p>
           </div>
         </div>
 
@@ -98,8 +101,8 @@ export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
               <p className="text-sm text-gray-500 font-medium mb-1">수령 가능한 수익금</p>
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-green-500" />
-                <span className="text-2xl font-black text-gray-900 tracking-tight">
-                  {formatUnits(claimableAmount, 6)} <span className="text-sm text-gray-500 font-bold">mUSD</span>
+                <span className="numeric text-2xl font-black text-gray-900 tracking-tight">
+                  {claimableAmountDisplay} <span className="text-sm text-gray-500 font-bold">mUSD</span>
                 </span>
               </div>
             </div>
