@@ -5,6 +5,7 @@ import { WalletConnect } from "../components/WalletConnect";
 import { Marketplace } from "../components/Marketplace";
 import { Portfolio } from "../components/Portfolio";
 import { AdminPanel } from "../components/AdminPanel";
+import { IS_LOCAL_CHAIN } from "../constants/contracts";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'marketplace' | 'portfolio'>('marketplace');
@@ -65,7 +66,7 @@ export default function Home() {
         {activeTab === 'marketplace' ? <Marketplace /> : <Portfolio />}
       </main>
       
-      <AdminPanel />
+      {IS_LOCAL_CHAIN && <AdminPanel />}
     </div>
   );
 }

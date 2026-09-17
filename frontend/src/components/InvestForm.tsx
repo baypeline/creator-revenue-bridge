@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits } from 'viem';
-import { CONTRACT_ADDRESSES, ERC20_ABI } from '../constants/contracts';
+import { CONTRACT_ADDRESSES, ERC20_ABI, IS_LOCAL_CHAIN } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { Loader2 } from 'lucide-react';
 import { useProduct } from '../hooks/useProduct';
@@ -64,7 +64,7 @@ export function InvestForm({ productId }: InvestFormProps) {
     }
   }, [isConfirmed, refetchAllowance]);
 
-  // 상단에서 새로고침(faucet API) 후 상태를 재반영하기 위해 창 포커스 시 refetch
+  // 외부에서 투자자 등록이나 토큰 지급이 완료된 뒤 상태를 재반영한다.
   useEffect(() => {
     const handleFocus = () => {
       refetchAllowed();
@@ -86,7 +86,11 @@ export function InvestForm({ productId }: InvestFormProps) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm mt-4 text-center">
         <p className="text-red-600 font-bold mb-2">⚠️ 투자를 위한 초기 세팅이 필요합니다</p>
-        <p className="text-sm text-red-500">우측 상단의 <span className="font-bold bg-green-100 text-green-700 px-1 rounded">💰 테스트 돈 받기</span> 버튼을 눌러 먼저 지갑을 등록해주세요!</p>
+        {IS_LOCAL_CHAIN ? (
+          <p className="text-sm text-red-500">우측 상단의 <span className="font-bold bg-green-100 text-green-700 px-1 rounded">💰 테스트 돈 받기</span> 버튼을 눌러 먼저 지갑을 등록해주세요!</p>
+        ) : (
+          <p className="text-sm text-red-500">현재 연결한 지갑은 투자자로 등록되어 있지 않습니다. 서비스 운영자에게 등록을 요청해주세요.</p>
+        )}
       </div>
     );
   }

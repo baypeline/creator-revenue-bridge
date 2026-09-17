@@ -2,10 +2,7 @@ import { NextResponse } from 'next/server';
 import { createWalletClient, http, parseEther, parseUnits, encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
-import { CONTRACT_ADDRESSES } from '@/constants/contracts';
-
-// Anvil 기본 제공 0번 계정 (10,000 ETH 보유)
-const account = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
+import { CONTRACT_ADDRESSES, IS_LOCAL_CHAIN } from '@/constants/contracts';
 
 const getRpcUrl = async () => {
   if (process.env.WEB3_RPC_URL) return process.env.WEB3_RPC_URL;
@@ -22,7 +19,13 @@ const getRpcUrl = async () => {
 };
 
 export async function POST(request: Request) {
+  if (!IS_LOCAL_CHAIN) {
+    return NextResponse.json({ error: '로컬 Anvil 환경에서만 사용할 수 있습니다.' }, { status: 404 });
+  }
+
   try {
+    // Anvil 기본 제공 0번 계정 (10,000 ETH 보유)
+    const account = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
     const { address } = await request.json();
     if (!address) return NextResponse.json({ error: 'No address' }, { status: 400 });
 

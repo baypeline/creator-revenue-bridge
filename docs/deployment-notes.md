@@ -18,9 +18,17 @@
 
 ## CRB-DEP-003 — 개발용 faucet의 운영 노출
 
-- 상태: 미해결
+- 상태: 해결
 - 영향: 현재 프론트엔드 faucet API는 공개된 Anvil 배포자 키와 unrestricted mint가 가능한 `MockSettlementToken`을 전제로 하므로 운영용 기능으로 사용할 수 없음
-- 후속 작업: 운영 빌드에서 로컬 faucet과 관리자 패널 비활성화, Base Sepolia 테스트 토큰 지급 정책과 호출 제한 별도 구성
+- 처리: 배포 manifest의 체인 ID가 Anvil인 경우에만 테스트 토큰 버튼과 관리자 패널을 표시하고, faucet API도 그 외 체인에서는 `404`로 차단
+- 후속 작업: Base Sepolia 테스트 토큰 지급 정책과 투자자 allowlist 등록 절차 별도 구성
+
+## CRB-DEP-016 — 운영 프론트엔드의 Anvil 체인 고정
+
+- 문제: 운영 이미지가 Base Sepolia manifest를 포함해도 Wagmi transport와 네트워크 전환 버튼은 Anvil `31337` 및 `127.0.0.1:8545`로 고정
+- 영향: 운영 화면에서 지갑을 연결해도 Base Sepolia 컨트랙트의 잔액 조회와 투자 트랜잭션 실행 불가
+- 처리: 생성된 manifest의 체인 ID에 따라 로컬에서는 Anvil, 운영에서는 Base Sepolia 체인과 기본 RPC를 선택하도록 구성
+- 사용성: MetaMask 연결 요청이 이미 진행 중일 때 다시 연결 버튼을 누르면 진행 중인 요청을 확인하라는 한국어 안내 추가
 
 ## CRB-DEP-004 — Base Sepolia 권한 이전
 
@@ -107,4 +115,3 @@
 - 문제: Windows Self-Hosted Runner가 대화형 콘솔 프로세스로 실행 중인 경우, Windows Update나 정전 후 재부팅 시 수동 재실행 전까지 배포 파이프라인이 중단됨
 - 처리: 중복 실행을 방지하는 러너 기동 스크립트(`start-runner.cmd`) 작성 및 Windows 시작 프로그램(`Startup`)에 최소화 실행 바로가기(`GitHub Actions Runner.lnk`) 등록
 - 효과: Docker Desktop(자동 실행)과 동일한 사용자 세션에서 러너가 자동 구동되어 재부팅 후에도 Docker 데몬 접근 권한을 유지하며 무인 자동 배포 지속 가능
-

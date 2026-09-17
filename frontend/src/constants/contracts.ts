@@ -1,6 +1,7 @@
 import deployment from '../generated/contracts/deployment.json';
 
 export const CHAIN_ID = deployment.chainId;
+export const IS_LOCAL_CHAIN = CHAIN_ID === 31337;
 
 export const CONTRACT_ADDRESSES = {
   REVENUE_BRIDGE: deployment.contracts.revenueBridge as `0x${string}`,
