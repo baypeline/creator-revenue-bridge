@@ -211,7 +211,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Log in to GHCR
-        shell: pwsh
+        shell: powershell
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -221,7 +221,7 @@ jobs:
           }
 
       - name: Replace production containers
-        shell: pwsh
+        shell: powershell
         env:
           DEPLOY_ENV_FILE: ${{ vars.DEPLOY_ENV_FILE || 'C:/ProgramData/CreatorRevenueBridge/.env.production' }}
           IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}

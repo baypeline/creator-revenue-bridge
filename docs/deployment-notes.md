@@ -86,3 +86,10 @@
 - 영향: 최초 운영 배포 시점에 runner 서비스 계정의 Docker 접근 또는 환경 파일 권한 문제를 뒤늦게 발견할 가능성
 - 처리: 배포 없이 Docker daemon, Linux container 모드, Docker Compose, 운영 환경 파일과 Compose 구성을 검사하는 수동 `Production runner check` 워크플로 구성
 - 보안: `main` ref와 `production` 환경 승인을 통과한 작업만 `production` 라벨 runner에서 실행되도록 제한
+
+## CRB-DEP-013 — Windows 러너 PowerShell 실행기 호환성
+
+- 문제: Windows 11 기본 환경에는 Windows PowerShell만 설치되어 있어 PowerShell 7 실행기인 `pwsh`를 찾지 못함
+- 영향: 운영 runner가 작업을 정상 수신해도 사전 점검과 실제 배포 단계가 명령 실행 전에 실패
+- 처리: Windows self-hosted runner에서 실행되는 점검, GHCR 로그인과 배포 단계의 shell을 기본 `powershell`로 변경
+- 검증: `Production runner check` 실제 재실행으로 Docker와 Compose 접근 확인 예정

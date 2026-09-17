@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Validate runner and deployment prerequisites
-        shell: pwsh
+        shell: powershell
         env:
           DEPLOY_ENV_FILE: ${{ inputs.environment_file || vars.DEPLOY_ENV_FILE || 'C:/ProgramData/CreatorRevenueBridge/.env.production' }}
         run: |
@@ -62,9 +62,11 @@ jobs:
             throw 'Production Compose configuration is invalid.'
           }
 
-          "### Production runner check" >> $env:GITHUB_STEP_SUMMARY
-          "- Runner: $env:RUNNER_NAME" >> $env:GITHUB_STEP_SUMMARY
-          "- Docker server: $dockerVersion" >> $env:GITHUB_STEP_SUMMARY
-          "- Container mode: $osType" >> $env:GITHUB_STEP_SUMMARY
-          "- Environment file: available" >> $env:GITHUB_STEP_SUMMARY
-          "- Production Compose: valid" >> $env:GITHUB_STEP_SUMMARY
+          @(
+            '### Production runner check'
+            "- Runner: $env:RUNNER_NAME"
+            "- Docker server: $dockerVersion"
+            "- Container mode: $osType"
+            '- Environment file: available'
+            '- Production Compose: valid'
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
