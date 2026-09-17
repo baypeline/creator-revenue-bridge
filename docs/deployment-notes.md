@@ -102,3 +102,9 @@
 - 처리: 셸 스크립트 파이프 방식 대신 크로스 플랫폼 표준 액션인 `docker/login-action@v3`을 `publish` 및 `deploy` 단계에 적용
 - 검증: `actionlint` 정적 검증 통과 및 Node.js 직접 스트림 입력을 통한 인증 정합성 확보
 
+## CRB-DEP-015 — 운영 PC 재부팅 대비 러너 자동 실행 구성
+
+- 문제: Windows Self-Hosted Runner가 대화형 콘솔 프로세스로 실행 중인 경우, Windows Update나 정전 후 재부팅 시 수동 재실행 전까지 배포 파이프라인이 중단됨
+- 처리: 중복 실행을 방지하는 러너 기동 스크립트(`start-runner.cmd`) 작성 및 Windows 시작 프로그램(`Startup`)에 최소화 실행 바로가기(`GitHub Actions Runner.lnk`) 등록
+- 효과: Docker Desktop(자동 실행)과 동일한 사용자 세션에서 러너가 자동 구동되어 재부팅 후에도 Docker 데몬 접근 권한을 유지하며 무인 자동 배포 지속 가능
+
