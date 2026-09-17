@@ -1,163 +1,162 @@
 'use client';
 
-import { useState } from 'react';
-import { createWalletClient, http, publicActions, parseUnits, type Account } from 'viem';
-import { foundry } from 'viem/chains';
-import { CONTRACT_ADDRESSES, ERC20_ABI } from '../constants/contracts';
-import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
-import { mnemonicToAccount } from 'viem/accounts';
-import { Loader2, Settings, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Check, ChevronRight, Clock3, Loader2, RotateCcw, Settings, X } from 'lucide-react';
 
-const ANVIL_MNEMONIC = 'test test test test test test test test test test test junk';
+type DemoAction = 'fund' | 'activate' | 'settle' | 'close' | 'claim' | 'reset';
 
-const ADMIN_ACCOUNT = mnemonicToAccount(ANVIL_MNEMONIC, { addressIndex: 0 });
-const SETTLER_ACCOUNT = mnemonicToAccount(ANVIL_MNEMONIC, { addressIndex: 2 });
-const CREATOR_ACCOUNT = mnemonicToAccount(ANVIL_MNEMONIC, { addressIndex: 4 });
-
-const getClient = (account: Account) => {
-  return createWalletClient({
-    account,
-    chain: foundry,
-    transport: http('http://localhost:8545')
-  }).extend(publicActions);
+type DemoState = {
+  offeringId: number;
+  status: number;
+  statusLabel: string;
+  unitsForSale: string;
+  raisedUnits: string;
+  targetRaise: string;
+  investorRevenue: string;
+  totalClaimed: string;
+  claimable: string;
+  escrowLiability: string;
+  revenueLiability: string;
+  nextPeriodIndex: number;
+  periodCount: number;
+  advanceWithdrawn: boolean;
+  chainTime: string;
 };
 
-export function AdminPanel() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isPending, setIsPending] = useState(false);
-  const [statusText, setStatusText] = useState('');
+const steps = [
+  { key: 'fund', label: '투자 모집 완료', description: '투자자가 남은 수익권을 모두 구매합니다.' },
+  { key: 'activate', label: '모집 확정·선지급', description: '모집을 확정하고 크리에이터가 선지급금을 받습니다.' },
+  { key: 'settle', label: '기간별 수익 정산', description: '정산일로 시간을 이동하고 1,000 mUSD 매출을 등록합니다.' },
+  { key: 'close', label: '상품 만기 처리', description: '모든 기간이 끝난 상품을 종료합니다.' },
+  { key: 'claim', label: '투자자 수익 청구', description: '누적된 투자자 배분금을 지갑으로 지급합니다.' },
+] as const;
 
-  const runAction = async (actionName: string, action: () => Promise<void>) => {
+function currentAction(state: DemoState): Exclude<DemoAction, 'reset'> | null {
+  if (state.status === 1 && BigInt(state.raisedUnits) < BigInt(state.unitsForSale)) return 'fund';
+  if (state.status === 1) return 'activate';
+  if ((state.status === 2 || state.status === 4) && state.nextPeriodIndex < state.periodCount) return 'settle';
+  if (state.status === 4 && state.nextPeriodIndex === state.periodCount) return 'close';
+  if (state.status === 5 && Number(state.claimable) > 0) return 'claim';
+  return null;
+}
+
+function isCompleted(state: DemoState, key: typeof steps[number]['key']) {
+  if (key === 'fund') return BigInt(state.raisedUnits) === BigInt(state.unitsForSale);
+  if (key === 'activate') return state.status >= 2 && state.status !== 3 && state.advanceWithdrawn;
+  if (key === 'settle') return state.nextPeriodIndex === state.periodCount;
+  if (key === 'close') return state.status === 5;
+  return Number(state.totalClaimed) > 0;
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC',
+  }).format(new Date(value));
+}
+
+export function AdminPanel() {
+  const queryClient = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [state, setState] = useState<DemoState | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch('/api/demo-deck', { cache: 'no-store' })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error ?? '데모 상태를 불러오지 못했습니다.');
+        setState(body);
+      })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+  }, [isOpen]);
+
+  const nextAction = useMemo(() => state ? currentAction(state) : null, [state]);
+
+  const runAction = async (action: DemoAction) => {
     try {
       setIsPending(true);
-      setStatusText(actionName);
-      await action();
-      alert(`${actionName} 완료되었습니다!`);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      alert(`에러 발생: ${msg}`);
+      setError('');
+      const response = await fetch('/api/demo-deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? '데모 단계를 실행하지 못했습니다.');
+      setState(body);
+      await queryClient.invalidateQueries();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setIsPending(false);
-      setStatusText('');
     }
-  };
-
-  // 1. 모금 확정 및 크리에이터 선지급금 수령 원클릭 처리
-  const handleFinalizeAndWithdraw = () => {
-    runAction('모금 확정 및 선지급 처리', async () => {
-      const adminClient = getClient(ADMIN_ACCOUNT);
-      const creatorClient = getClient(CREATOR_ACCOUNT);
-
-      // 모금 확정
-      const fHash = await adminClient.writeContract({
-        account: ADMIN_ACCOUNT,
-        address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
-        abi: RevenueBridgeABI,
-        functionName: 'finalizeFunding',
-        args: [BigInt(1)],
-      });
-      await adminClient.waitForTransactionReceipt({ hash: fHash });
-
-      // 크리에이터 선지급금 수령
-      const wHash = await creatorClient.writeContract({
-        account: CREATOR_ACCOUNT,
-        address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
-        abi: RevenueBridgeABI,
-        functionName: 'withdrawAdvance',
-        args: [BigInt(1)],
-      });
-      await creatorClient.waitForTransactionReceipt({ hash: wHash });
-    });
-  };
-
-  // 2. 수익 정산 원클릭 처리 (자동 승인 + 정산 실행)
-  const handleOneClickSettle = () => {
-    runAction('수익 정산(1,000 mUSD 매출)', async () => {
-      const settlerClient = getClient(SETTLER_ACCOUNT);
-      const amount = parseUnits('1000', 6);
-
-      // 토큰 지출 승인
-      const approveHash = await settlerClient.writeContract({
-        account: SETTLER_ACCOUNT,
-        address: CONTRACT_ADDRESSES.MUSD,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [CONTRACT_ADDRESSES.REVENUE_BRIDGE, amount],
-      });
-      await settlerClient.waitForTransactionReceipt({ hash: approveHash });
-
-      // 정산 실행
-      const evidenceHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-      const settleHash = await settlerClient.writeContract({
-        account: SETTLER_ACCOUNT,
-        address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
-        abi: RevenueBridgeABI,
-        functionName: 'settlePeriod',
-        args: [BigInt(1), BigInt(0), amount, evidenceHash],
-      });
-      await settlerClient.waitForTransactionReceipt({ hash: settleHash });
-    });
   };
 
   if (!isOpen) {
     return (
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-gray-900 text-white p-3.5 rounded-full shadow-2xl hover:bg-black hover:scale-105 transition-all z-50 flex items-center justify-center border border-gray-700"
-        title="데모 관리자 패널"
-      >
-        <Settings className="w-6 h-6" />
+      <button onClick={() => { setError(''); setIsOpen(true); }} className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-blue-500/30 bg-gray-950 px-4 py-3 text-sm font-bold text-white shadow-2xl transition hover:-translate-y-0.5 hover:bg-black" title="Anvil 데모 덱 열기">
+        <Settings className="h-5 w-5 text-cyan-300" /> 데모 덱
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden flex flex-col">
-      <div className="bg-gray-900 text-white p-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-green-400" />
-          <h3 className="font-bold text-sm">데모 시연용 원클릭 패널</h3>
+    <aside className="fixed bottom-5 right-5 z-50 flex max-h-[calc(100vh-2.5rem)] w-[390px] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl">
+      <div className="bg-gray-950 px-5 pb-5 pt-4 text-white">
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300">Anvil scenario control</p>
+            <h2 className="mt-1 text-lg font-black">로컬 데모 덱</h2>
+          </div>
+          <button onClick={() => setIsOpen(false)} className="rounded-full p-1.5 text-gray-400 transition hover:bg-white/10 hover:text-white" aria-label="데모 덱 닫기"><X className="h-5 w-5" /></button>
         </div>
-        <button 
-          onClick={() => setIsOpen(false)} 
-          className="text-gray-400 hover:text-white p-1 rounded transition-colors"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="p-4 space-y-3 relative">
-        {isPending && (
-          <div className="absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center gap-2 p-4 text-center">
-            <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
-            <p className="font-bold text-xs text-gray-800">{statusText} 진행 중...</p>
+        {state && (
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-white/10 p-3"><p className="text-[10px] text-gray-400">상태</p><p className="mt-1 text-sm font-bold text-cyan-200">{state.statusLabel}</p></div>
+            <div className="rounded-xl bg-white/10 p-3"><p className="text-[10px] text-gray-400">모집</p><p className="mt-1 text-sm font-bold">{state.raisedUnits}/{state.unitsForSale}</p></div>
+            <div className="rounded-xl bg-white/10 p-3"><p className="text-[10px] text-gray-400">정산</p><p className="mt-1 text-sm font-bold">{state.nextPeriodIndex}/{state.periodCount}</p></div>
           </div>
         )}
-
-        <p className="text-xs text-gray-500 leading-relaxed">
-          데모 발표 및 테스트 시 필요한 백엔드/운영자 작업을 원클릭으로 실행합니다.
-        </p>
-
-        {/* 1. 모금 마감 및 선지급 처리 */}
-        <button 
-          onClick={handleFinalizeAndWithdraw}
-          disabled={isPending}
-          className="w-full bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold py-3 px-4 rounded-xl text-xs flex flex-col items-start gap-1 border border-blue-200 transition-all text-left"
-        >
-          <span className="font-black text-blue-900">1. 모금 확정 & 크리에이터 지급</span>
-          <span className="text-[11px] text-blue-600 font-normal">투자 모집을 마감하고 크리에이터에게 선지급금을 인출합니다.</span>
-        </button>
-
-        {/* 2. 수익 정산 실행 */}
-        <button 
-          onClick={handleOneClickSettle}
-          disabled={isPending}
-          className="w-full bg-green-50 hover:bg-green-100 text-green-800 font-bold py-3 px-4 rounded-xl text-xs flex flex-col items-start gap-1 border border-green-200 transition-all text-left"
-        >
-          <span className="font-black text-green-900">2. 원클릭 수익 정산 실행</span>
-          <span className="text-[11px] text-green-600 font-normal">광고 매출(1,000 mUSD) 정산을 실행하여 투자자 수익금을 생성합니다.</span>
-        </button>
       </div>
-    </div>
+
+      <div className="overflow-y-auto p-5">
+        {!state && !error && <div className="flex items-center justify-center gap-2 py-16 text-sm font-medium text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /> 상태 확인 중</div>}
+        {state && (
+          <>
+            <div className="mb-5 flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-800"><Clock3 className="h-4 w-4 shrink-0" /><span>체인 시각 <strong>{formatTime(state.chainTime)} UTC</strong></span></div>
+            <ol className="space-y-2">
+              {steps.map((step, index) => {
+                const done = isCompleted(state, step.key);
+                const active = nextAction === step.key;
+                const label = step.key === 'settle' ? `${step.label} (${state.nextPeriodIndex}/${state.periodCount})` : step.label;
+                return (
+                  <li key={step.key} className={`rounded-2xl border p-3 transition ${active ? 'border-blue-300 bg-blue-50/60' : 'border-gray-100 bg-gray-50/60'}`}>
+                    <div className="flex gap-3">
+                      <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${done ? 'bg-emerald-500 text-white' : active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>{done ? <Check className="h-3.5 w-3.5" /> : index + 1}</div>
+                      <div className="min-w-0 flex-1"><p className="text-sm font-bold text-gray-900">{label}</p><p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">{step.description}</p></div>
+                      {active && <ChevronRight className="mt-1 h-4 w-4 text-blue-600" />}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl border border-gray-100 p-3 text-xs">
+              <div><span className="text-gray-400">모집금</span><strong className="ml-2 text-gray-800">{state.targetRaise} mUSD</strong></div>
+              <div><span className="text-gray-400">누적 배분</span><strong className="ml-2 text-gray-800">{state.investorRevenue} mUSD</strong></div>
+              <div><span className="text-gray-400">청구 가능</span><strong className="ml-2 text-gray-800">{state.claimable} mUSD</strong></div>
+              <div><span className="text-gray-400">남은 부채</span><strong className="ml-2 text-gray-800">{Number(state.escrowLiability) + Number(state.revenueLiability)} mUSD</strong></div>
+            </div>
+            <button onClick={() => nextAction && runAction(nextAction)} disabled={!nextAction || isPending} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none">
+              {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> 처리 중</> : nextAction ? '다음 단계 실행' : '데모 시나리오 완료'}
+            </button>
+            <button onClick={() => runAction('reset')} disabled={isPending} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40"><RotateCcw className="h-3.5 w-3.5" /> 처음 상태로 되돌리기</button>
+          </>
+        )}
+        {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-700">{error}</div>}
+      </div>
+    </aside>
   );
 }
