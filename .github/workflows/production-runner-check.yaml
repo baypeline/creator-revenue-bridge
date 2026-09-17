@@ -1,0 +1,70 @@
+name: Production runner check
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_file:
+        description: Optional absolute path to the production environment file
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-runner-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check production runner
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, windows, x64, production]
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate runner and deployment prerequisites
+        shell: pwsh
+        env:
+          DEPLOY_ENV_FILE: ${{ inputs.environment_file || vars.DEPLOY_ENV_FILE || 'C:/ProgramData/CreatorRevenueBridge/.env.production' }}
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+
+          if (-not (Test-Path -LiteralPath $env:DEPLOY_ENV_FILE -PathType Leaf)) {
+            throw "Production environment file was not found: $env:DEPLOY_ENV_FILE"
+          }
+
+          $dockerVersion = (& docker version --format '{{.Server.Version}}').Trim()
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($dockerVersion)) {
+            throw 'Docker daemon is not accessible from the runner service account.'
+          }
+
+          $osType = (& docker info --format '{{.OSType}}').Trim()
+          if ($LASTEXITCODE -ne 0 -or $osType -ne 'linux') {
+            throw "Docker must use Linux containers. Current OSType: $osType"
+          }
+
+          & docker compose version
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Docker Compose is not available.'
+          }
+
+          $env:IMAGE_TAG = 'sha-' + ('0' * 40)
+          & docker compose `
+            --env-file $env:DEPLOY_ENV_FILE `
+            -f (Join-Path $env:GITHUB_WORKSPACE 'compose.prod.yaml') `
+            config --quiet
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Production Compose configuration is invalid.'
+          }
+
+          "### Production runner check" >> $env:GITHUB_STEP_SUMMARY
+          "- Runner: $env:RUNNER_NAME" >> $env:GITHUB_STEP_SUMMARY
+          "- Docker server: $dockerVersion" >> $env:GITHUB_STEP_SUMMARY
+          "- Container mode: $osType" >> $env:GITHUB_STEP_SUMMARY
+          "- Environment file: available" >> $env:GITHUB_STEP_SUMMARY
+          "- Production Compose: valid" >> $env:GITHUB_STEP_SUMMARY
