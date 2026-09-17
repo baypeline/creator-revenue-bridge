@@ -53,13 +53,9 @@ export function Marketplace() {
 
   return (
     <section>
-      <header className="mb-10 max-w-3xl border-l-[3px] border-blue-600 pl-5 sm:pl-7">
-        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-blue-700">Revenue rights marketplace</p>
-        <h2 className="text-3xl font-black tracking-[-0.04em] text-gray-950 sm:text-[40px] sm:leading-tight">크리에이터 수익을<br className="sm:hidden" /> 투자 기회로 만나다</h2>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">모집 현황과 수익 배분 조건을 비교하고, 온체인으로 발행된 수익권에 투자하세요.</p>
-      </header>
+      <h1 className="sr-only">수익권 마켓플레이스</h1>
 
-      <div className="mb-7 flex flex-col gap-4 border-y border-gray-200 py-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mb-7 flex flex-col gap-4 border-b border-gray-200 pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative w-full lg:max-w-md">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input type="search" className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50" placeholder="상품명 또는 크리에이터 검색" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />

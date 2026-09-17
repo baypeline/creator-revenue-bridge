@@ -59,7 +59,7 @@ export function Portfolio() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">내 포트폴리오</h2>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">내 포트폴리오</h1>
         <p className="text-gray-500 text-sm">
           현재 투자 중인 수익권 상품과 수령 가능한 정산금을 확인하세요.
         </p>
