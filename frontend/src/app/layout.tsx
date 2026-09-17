@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import Script from "next/script";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -16,7 +15,6 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       </head>
       <body>
         <Providers>{children}</Providers>
-        <Script src="https://unpkg.com/@tailwindcss/browser@4" />
       </body>
     </html>
   );

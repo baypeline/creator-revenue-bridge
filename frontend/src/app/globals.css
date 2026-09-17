@@ -1,5 +1,7 @@
+@import "tailwindcss";
+
 :root {
-  /* Cleaned globals.css to prevent Next.js CSS parser errors */
+  color-scheme: light;
 }
 
 body {
