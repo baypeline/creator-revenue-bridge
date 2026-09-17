@@ -32,9 +32,15 @@ if ([string]::IsNullOrWhiteSpace($Tag) -or $Tag -notmatch '^sha-[0-9a-f]{40}$') 
 }
 
 if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
-    Write-Warning "Production environment file not found at: $EnvFile"
-    Write-Host "You can initialize it by running: .\scripts\setup-production-runner.ps1 -ConfigureEnvOnly" -ForegroundColor Yellow
-    throw "Environment file missing: $EnvFile"
+    $localEnv = Join-Path $repoDir '.env.prod'
+    if (Test-Path -LiteralPath $localEnv -PathType Leaf) {
+        $EnvFile = $localEnv
+        Write-Host "Using repository environment file: $EnvFile" -ForegroundColor Cyan
+    } else {
+        Write-Warning "Production environment file not found at: $EnvFile"
+        Write-Host "You can initialize it by running: .\scripts\setup-production-runner.ps1 -ConfigureEnvOnly" -ForegroundColor Yellow
+        throw "Environment file missing: $EnvFile"
+    }
 }
 
 $deployScript = Join-Path $scriptDir 'deploy-production.ps1'

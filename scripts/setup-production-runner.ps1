@@ -69,8 +69,12 @@ if (-not (Test-Path -LiteralPath $EnvDirectory)) {
 $targetEnvFile = Join-Path $EnvDirectory '.env.production'
 $repoDirectory = Split-Path -Parent $PSScriptRoot
 $sourceEnvExample = Join-Path $repoDirectory 'deploy\production.env.example'
+$sourceLocalEnv = Join-Path $repoDirectory '.env.prod'
 
-if (-not (Test-Path -LiteralPath $targetEnvFile)) {
+if (Test-Path -LiteralPath $sourceLocalEnv) {
+    Copy-Item -LiteralPath $sourceLocalEnv -Destination $targetEnvFile -Force
+    Write-Host "Synchronized $sourceLocalEnv -> $targetEnvFile" -ForegroundColor Green
+} elseif (-not (Test-Path -LiteralPath $targetEnvFile)) {
     if (Test-Path -LiteralPath $sourceEnvExample) {
         Copy-Item -LiteralPath $sourceEnvExample -Destination $targetEnvFile -Force
         Write-Host "Copied $sourceEnvExample -> $targetEnvFile" -ForegroundColor Green

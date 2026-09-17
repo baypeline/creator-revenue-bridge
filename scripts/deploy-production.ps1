@@ -12,11 +12,18 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$repoDirectory = Split-Path -Parent $PSScriptRoot
+
 if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
-    throw "Production environment file was not found: $EnvFile"
+    $localEnv = Join-Path $repoDirectory '.env.prod'
+    if (Test-Path -LiteralPath $localEnv -PathType Leaf) {
+        $EnvFile = $localEnv
+        Write-Host "Using repository environment file: $EnvFile" -ForegroundColor Cyan
+    } else {
+        throw "Production environment file was not found: $EnvFile"
+    }
 }
 
-$repoDirectory = Split-Path -Parent $PSScriptRoot
 $composeFile = Join-Path $repoDirectory 'compose.prod.yaml'
 $composeArguments = @('compose', '--env-file', $EnvFile, '-f', $composeFile)
 $originalImageTag = [Environment]::GetEnvironmentVariable('IMAGE_TAG', 'Process')
