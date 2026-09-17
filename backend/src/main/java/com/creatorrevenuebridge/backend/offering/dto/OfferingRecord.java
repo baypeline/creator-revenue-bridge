@@ -6,10 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Binds resources/offerings/{offeringId}.json - the backend's off-chain source of truth for
- * offering metadata and terms (team decision: backend does not query the chain directly).
- */
+/** Database representation of off-chain offering metadata and mirrored contract terms. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record OfferingRecord(
         long offeringId,

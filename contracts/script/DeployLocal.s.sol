@@ -22,6 +22,9 @@ contract DeployLocal is Script {
     uint256 internal constant DEMO_FUNDING_DURATION = 7 days;
     uint256 internal constant DEMO_REVENUE_START_DELAY = 1 days;
     uint256 internal constant DEMO_SETTLEMENT_PERIOD = 30 days;
+    uint256 internal constant INSTANT_FUNDING_DURATION = 10 minutes;
+    uint256 internal constant INSTANT_REVENUE_START_DELAY = 1 minutes;
+    uint256 internal constant INSTANT_SETTLEMENT_PERIOD = 1 minutes;
 
     struct LocalConfig {
         uint256 deployerPrivateKey;
@@ -74,15 +77,49 @@ contract DeployLocal is Script {
         settlementToken.mint(config.investor, config.investorBalance);
         settlementToken.mint(config.settler, config.settlerBalance);
 
-        DemoOffering memory demo = _createDemoOffering(bridge, config.creator);
+        DemoOffering memory demo = _createOffering(
+            bridge,
+            config.creator,
+            "demo-studio-aurora-2026",
+            "local-demo-terms-v1",
+            "local-demo-valuation-v1",
+            DEMO_UNITS_FOR_SALE,
+            DEMO_UNIT_PRICE,
+            DEMO_REVENUE_SHARE_BPS,
+            DEMO_FUNDING_DURATION,
+            DEMO_REVENUE_START_DELAY,
+            DEMO_SETTLEMENT_PERIOD,
+            3
+        );
+        _createOffering(
+            bridge,
+            config.creator,
+            "demo-podcast-wave-2026",
+            "local-podcast-terms-v1",
+            "local-podcast-valuation-v1",
+            200,
+            50e6,
+            1_500,
+            DEMO_FUNDING_DURATION,
+            DEMO_REVENUE_START_DELAY,
+            DEMO_SETTLEMENT_PERIOD,
+            2
+        );
+        _createOffering(
+            bridge,
+            config.creator,
+            "demo-instant-maturity-2026",
+            "local-instant-terms-v1",
+            "local-instant-valuation-v1",
+            10,
+            1e6,
+            1_000,
+            INSTANT_FUNDING_DURATION,
+            INSTANT_REVENUE_START_DELAY,
+            INSTANT_SETTLEMENT_PERIOD,
+            3
+        );
         demoOfferingId = demo.id;
-
-        if (config.issuer != config.deployer) {
-            bridge.revokeRole(bridge.ISSUER_ROLE(), config.deployer);
-        }
-        if (config.settler != config.deployer) {
-            bridge.revokeRole(bridge.SETTLER_ROLE(), config.deployer);
-        }
 
         vm.stopBroadcast();
 
@@ -113,26 +150,39 @@ contract DeployLocal is Script {
         }
     }
 
-    function _createDemoOffering(RevenueBridge bridge, address creator) private returns (DemoOffering memory demo) {
-        demo.fundingDeadline = uint64(block.timestamp + DEMO_FUNDING_DURATION);
-        demo.revenueStart = uint64(demo.fundingDeadline + DEMO_REVENUE_START_DELAY);
-        demo.revenueEnd = uint64(demo.revenueStart + (DEMO_SETTLEMENT_PERIOD * 3));
-        uint64[] memory periodEnds = new uint64[](3);
-        periodEnds[0] = uint64(demo.revenueStart + DEMO_SETTLEMENT_PERIOD);
-        periodEnds[1] = uint64(demo.revenueStart + (DEMO_SETTLEMENT_PERIOD * 2));
-        periodEnds[2] = demo.revenueEnd;
+    function _createOffering(
+        RevenueBridge bridge,
+        address creator,
+        string memory assetKey,
+        string memory termsDocument,
+        string memory valuationDocument,
+        uint256 unitsForSale,
+        uint256 unitPrice,
+        uint16 revenueShareBps,
+        uint256 fundingDuration,
+        uint256 revenueStartDelay,
+        uint256 settlementPeriodDuration,
+        uint256 settlementPeriodCount
+    ) private returns (DemoOffering memory demo) {
+        demo.fundingDeadline = uint64(block.timestamp + fundingDuration);
+        demo.revenueStart = uint64(demo.fundingDeadline + revenueStartDelay);
+        demo.revenueEnd = uint64(demo.revenueStart + settlementPeriodDuration * settlementPeriodCount);
+        uint64[] memory periodEnds = new uint64[](settlementPeriodCount);
+        for (uint256 i = 0; i < settlementPeriodCount; ++i) {
+            periodEnds[i] = uint64(demo.revenueStart + settlementPeriodDuration * (i + 1));
+        }
 
         IRevenueBridge.OfferingTerms memory demoTerms = IRevenueBridge.OfferingTerms({
             creatorPayout: creator,
-            assetKey: keccak256("local-demo-youtube-revenue"),
-            termsHash: keccak256("local-demo-terms-v1"),
-            valuationHash: keccak256("local-demo-valuation-v1"),
-            unitsForSale: DEMO_UNITS_FOR_SALE,
-            unitPrice: DEMO_UNIT_PRICE,
+            assetKey: keccak256(bytes(assetKey)),
+            termsHash: keccak256(bytes(termsDocument)),
+            valuationHash: keccak256(bytes(valuationDocument)),
+            unitsForSale: unitsForSale,
+            unitPrice: unitPrice,
             fundingDeadline: demo.fundingDeadline,
             revenueStart: demo.revenueStart,
             revenueEnd: demo.revenueEnd,
-            revenueShareBps: DEMO_REVENUE_SHARE_BPS
+            revenueShareBps: revenueShareBps
         });
         demo.id = bridge.createOffering(demoTerms, periodEnds);
     }

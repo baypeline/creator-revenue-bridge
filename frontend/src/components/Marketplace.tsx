@@ -7,7 +7,7 @@ import { ProductCard } from './ProductCard';
 import { Search, X } from 'lucide-react';
 
 export function Marketplace() {
-  const { products, isLoading } = useProducts();
+  const { products, isLoading, isError } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -16,6 +16,15 @@ export function Marketplace() {
     return (
       <div className="flex justify-center items-center h-64">
         <span className="text-gray-400 font-medium animate-pulse">마켓플레이스 불러오는 중...</span>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-2xl border border-red-100 bg-red-50 px-6 py-16 text-center">
+        <p className="font-bold text-red-700">상품 정보를 불러오지 못했습니다.</p>
+        <p className="mt-2 text-sm text-red-600">잠시 후 페이지를 새로고침해주세요.</p>
       </div>
     );
   }
@@ -69,7 +78,7 @@ export function Marketplace() {
       {/* 2. 상품 그리드 영역 */}
       {filteredProducts.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-gray-500 font-medium">검색 결과가 없습니다.</p>
+          <p className="text-gray-500 font-medium">현재 조건에 맞는 상품이 없습니다.</p>
           <button 
             onClick={() => { setSearchQuery(''); setSelectedStatus('all'); }}
             className="mt-4 text-blue-600 font-semibold hover:underline"

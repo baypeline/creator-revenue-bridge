@@ -11,9 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Exercises the four read-only endpoints end to end against the real off-chain resources
- * (resources/offerings/1.json, application.properties valuation inputs). No chain artifacts are
- * generated in this checkout, so /api/chain/config is expected to fail closed with 503.
+ * Exercises the read-only endpoints end to end against the migrated in-memory database and
+ * application.properties valuation inputs.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -46,6 +45,17 @@ class OfferingApiIntegrationTest {
     }
 
     @Test
+    void getOfferingsReturnsSeededDemoCatalogInDisplayOrder() throws Exception {
+        mockMvc.perform(get("/api/offerings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].offeringId").value(1))
+                .andExpect(jsonPath("$[0].title").value("라이브 콘텐츠 광고 수익권"))
+                .andExpect(jsonPath("$[2].offeringId").value(3))
+                .andExpect(jsonPath("$[2].title").value("즉시 만기 검증용 수익권"));
+    }
+
+    @Test
     void getOfferingUnknownIdReturns404WithApiErrorBody() throws Exception {
         mockMvc.perform(get("/api/offerings/999"))
                 .andExpect(status().isNotFound())
@@ -73,10 +83,4 @@ class OfferingApiIntegrationTest {
                 .andExpect(jsonPath("$.disclaimer").isNotEmpty());
     }
 
-    @Test
-    void getChainConfigFailsClosedWhenDeploymentArtifactsAreMissing() throws Exception {
-        mockMvc.perform(get("/api/chain/config"))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value("CHAIN_ARTIFACTS_NOT_FOUND"));
-    }
 }

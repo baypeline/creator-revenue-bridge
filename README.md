@@ -200,6 +200,7 @@ docker compose -f compose.dev.yaml up --build
 | Frontend | `http://localhost:3000` | Next.js 개발 서버와 소스 변경 반영 |
 | Backend | `http://localhost:8080` | Spring Boot 개발 서버 |
 | Anvil RPC | `http://localhost:8545` | 체인 ID `31337`인 로컬 Ethereum RPC |
+| Database | Compose 내부 `database:5432` | 상품 metadata와 정산 계획을 저장하는 PostgreSQL |
 
 `forge` 서비스는 Anvil이 준비된 뒤 컨트랙트 테스트를 한 번 실행한다. 테스트나 Foundry 명령을 다시 실행하려면 다음 명령을 사용한다.
 
@@ -214,7 +215,7 @@ docker compose -f compose.dev.yaml run --rm --entrypoint cast forge block-number
 ./scripts/deploy-local.sh
 ```
 
-배포 스크립트는 체인 ID `31337`에서만 실행된다. 기본값은 Anvil 개발 계정 1번을 관리자, 2번을 발행자, 3번을 정산자, 4번을 투자자, 5번을 크리에이터로 구성한다. 투자자와 정산자에게 각각 1,000,000 mUSD를 지급하고, 수익권 100개를 개당 100 mUSD에 모집하는 `offeringId=1` 상품을 생성한다. 투자자 배분율은 20%이며 수익 기간은 세 구간으로 나뉜다.
+배포 스크립트는 체인 ID `31337`에서만 실행된다. 기본값은 Anvil 개발 계정 1번을 관리자 겸 로컬 운영자, 2번을 발행자, 3번을 정산자, 4번을 투자자, 5번을 크리에이터로 구성한다. 투자자와 정산자에게 각각 1,000,000 mUSD를 지급하고 초기 데모 상품 세 건을 생성한다. 세 번째 상품은 모집 10분, 수익 시작 대기 1분, 정산 주기당 1분으로 구성되어 만기와 정산 흐름을 짧은 시간 안에 검증할 수 있다.
 
 배포가 끝나면 모의 정산 토큰, Bridge, 수익권 토큰 주소와 데모 상품의 ID·금액·일정이 출력된다. `.env`에서 `ANVIL_DEPLOYER_PRIVATE_KEY`, 역할별 주소, 지급액과 `LOCAL_TOKEN_BASE_URI`를 변경할 수 있다. 이 계정들은 공개된 테스트 전용 자격 증명이므로 실제 자산이나 외부 네트워크에 사용하지 않는다.
 

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.List;
 
 @Service
 public class OfferingService {
@@ -18,7 +19,14 @@ public class OfferingService {
     }
 
     public OfferingResponse getOffering(long offeringId) {
-        OfferingRecord record = offeringDataStore.get(offeringId);
+        return toResponse(offeringDataStore.get(offeringId));
+    }
+
+    public List<OfferingResponse> getOfferings() {
+        return offeringDataStore.findAll().stream().map(this::toResponse).toList();
+    }
+
+    private OfferingResponse toResponse(OfferingRecord record) {
         int decimals = record.settlementCurrency().decimals();
 
         BigInteger unitPriceRaw = new BigInteger(record.terms().unitPriceRaw());

@@ -23,6 +23,9 @@ services:
     command: sh ./gradlew bootRun --no-daemon
     environment:
       SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/${DATABASE_NAME:-creator_revenue_bridge}
+      SPRING_DATASOURCE_USERNAME: ${DATABASE_USER:-crb}
+      SPRING_DATASOURCE_PASSWORD: ${DATABASE_PASSWORD:-crb_dev}
       WEB3_RPC_URL: http://anvil:8545
     ports:
       - "${BACKEND_PORT:-8080}:8080"
@@ -32,6 +35,22 @@ services:
     depends_on:
       anvil:
         condition: service_healthy
+      database:
+        condition: service_healthy
+
+  database:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-creator_revenue_bridge}
+      POSTGRES_USER: ${DATABASE_USER:-crb}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-crb_dev}
+    volumes:
+      - database_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-crb} -d ${DATABASE_NAME:-creator_revenue_bridge}"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
   anvil:
     image: ghcr.io/foundry-rs/foundry:v1.8.1
@@ -78,6 +97,7 @@ volumes:
   frontend_node_modules:
   frontend_next:
   backend_gradle:
+  database_data:
   forge_broadcast:
   forge_cache:
   forge_out:

@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/offerings")
 public class OfferingController {
@@ -14,6 +16,11 @@ public class OfferingController {
 
     public OfferingController(OfferingService offeringService) {
         this.offeringService = offeringService;
+    }
+
+    @GetMapping
+    public List<OfferingResponse> getOfferings() {
+        return offeringService.getOfferings();
     }
 
     @GetMapping("/{offeringId}")

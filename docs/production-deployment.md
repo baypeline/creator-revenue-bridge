@@ -99,7 +99,9 @@ icacls $envFile /inheritance:r
 icacls $envFile /grant:r "${env:USERNAME}:(F)" 'SYSTEM:(F)'
 ```
 
-`WEB3_RPC_URL`에는 외부에 공개하지 않는 인증된 Base Sepolia RPC 주소를 넣는다. 배포자 개인키는 컨트랙트 배포 때만 개발 PC에서 사용하며 운영 서버와 GitHub Actions에는 저장하지 않는다. 이미지 태그는 GitHub Actions가 매 배포마다 주입하므로 환경 파일에 고정하지 않는다.
+`WEB3_RPC_URL`에는 외부에 공개하지 않는 인증된 Base Sepolia RPC 주소를 넣는다. `DATABASE_PASSWORD`에는 임의로 생성한 긴 비밀번호를 넣고 저장소나 채팅에 공유하지 않는다. 배포자 개인키는 컨트랙트 배포 때만 개발 PC에서 사용하며 운영 서버와 GitHub Actions에는 저장하지 않는다. 이미지 태그는 GitHub Actions가 매 배포마다 주입하므로 환경 파일에 고정하지 않는다.
+
+PostgreSQL은 외부 포트를 열지 않고 Compose 내부에서만 backend와 통신한다. `database_data` 볼륨에 상품 catalog를 보존하므로 일반적인 이미지 교체나 컨테이너 재생성 후에도 데이터가 유지된다. `docker compose down --volumes`는 운영 DB까지 삭제하므로 운영 서버에서는 실행하지 않는다.
 
 GHCR 패키지가 private이면 repository의 `GITHUB_TOKEN`이 패키지를 읽을 수 있도록 패키지 설정에서 이 저장소에 접근 권한을 부여한다. 워크플로는 장기 PAT 대신 작업마다 발급되는 `GITHUB_TOKEN`으로 로그인한다.
 
@@ -131,8 +133,16 @@ server {
 1. 개발 PC에서 `.env.base-sepolia`를 불러오고 `./scripts/deploy-base-sepolia.sh --check`를 다시 실행한다.
 2. 최종 점검 후 `./scripts/deploy-base-sepolia.sh --broadcast`를 실행한다.
 3. 생성된 `contracts/deployments/base-sepolia/84532.json`에서 주소와 역할을 확인한다.
-4. manifest를 커밋해 `main`에 반영한다.
-5. CI가 검증, GHCR 게시와 운영 서버 배포를 순서대로 수행하는지 Actions 화면에서 확인한다.
+4. 초기 데모 상품을 시뮬레이션하고 등록한다.
+
+   ```bash
+   ./scripts/seed-base-sepolia-demo-offerings.sh --check
+   ./scripts/seed-base-sepolia-demo-offerings.sh --broadcast
+   ```
+
+   세 번째 상품은 기본값으로 모집 10분, 수익 시작 대기 1분, 1분 단위 세 차례 정산을 사용한다. `DEMO_INSTANT_FUNDING_SECONDS`, `DEMO_INSTANT_START_DELAY_SECONDS`, `DEMO_INSTANT_PERIOD_SECONDS`로 간격을 조정할 수 있다.
+5. manifest와 실제 온체인 일정이 반영된 DB migration을 커밋해 `main`에 반영한다.
+6. CI가 검증, GHCR 게시와 운영 서버 배포를 순서대로 수행하는지 Actions 화면에서 확인한다.
 
 실제 배포 전에는 `84532.json`이 없으므로 publish 작업은 성공 상태로 건너뛰고 배포 작업도 실행하지 않는다. CI 전용 `31337.json`은 운영 이미지 생성에 사용되지 않는다.
 

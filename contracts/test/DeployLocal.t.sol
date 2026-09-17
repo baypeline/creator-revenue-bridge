@@ -43,8 +43,8 @@ contract DeployLocalTest is Test {
 
         address deployer = vm.addr(DEPLOYER_PRIVATE_KEY);
         assertTrue(bridge.hasRole(bridge.DEFAULT_ADMIN_ROLE(), deployer));
-        assertFalse(bridge.hasRole(bridge.ISSUER_ROLE(), deployer));
-        assertFalse(bridge.hasRole(bridge.SETTLER_ROLE(), deployer));
+        assertTrue(bridge.hasRole(bridge.ISSUER_ROLE(), deployer));
+        assertTrue(bridge.hasRole(bridge.SETTLER_ROLE(), deployer));
         assertTrue(bridge.hasRole(bridge.ISSUER_ROLE(), issuer));
         assertTrue(bridge.hasRole(bridge.SETTLER_ROLE(), settler));
         assertTrue(bridge.allowedInvestors(investor));
@@ -59,14 +59,27 @@ contract DeployLocalTest is Test {
         assertEq(demoOfferingId, 1);
         assertEq(uint256(offering.status), uint256(IRevenueBridge.OfferingStatus.Funding));
         assertEq(offering.creatorPayout, creator);
-        assertEq(offering.assetKey, keccak256("local-demo-youtube-revenue"));
+        assertEq(offering.assetKey, keccak256("demo-studio-aurora-2026"));
         assertEq(offering.termsHash, keccak256("local-demo-terms-v1"));
         assertEq(offering.valuationHash, keccak256("local-demo-valuation-v1"));
         assertEq(offering.unitsForSale, 100);
         assertEq(offering.unitPrice, 100e6);
         assertEq(offering.revenueShareBps, 2_000);
         assertEq(bridge.targetRaise(demoOfferingId), 10_000e6);
-        assertEq(bridge.nextOfferingId(), 2);
+        assertEq(bridge.nextOfferingId(), 4);
+
+        IRevenueBridge.Offering memory secondOffering = bridge.getOffering(2);
+        assertEq(secondOffering.unitsForSale, 200);
+        assertEq(secondOffering.unitPrice, 50e6);
+        assertEq(secondOffering.revenueShareBps, 1_500);
+
+        IRevenueBridge.Offering memory instantOffering = bridge.getOffering(3);
+        assertEq(instantOffering.unitsForSale, 10);
+        assertEq(instantOffering.unitPrice, 1e6);
+        assertEq(instantOffering.revenueShareBps, 1_000);
+        assertEq(instantOffering.fundingDeadline, block.timestamp + 10 minutes);
+        assertEq(instantOffering.revenueStart, instantOffering.fundingDeadline + 1 minutes);
+        assertEq(instantOffering.revenueEnd, instantOffering.revenueStart + 3 minutes);
 
         uint64[] memory periodEnds = bridge.getPeriodEnds(demoOfferingId);
         assertEq(periodEnds.length, 3);
