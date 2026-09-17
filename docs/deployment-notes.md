@@ -71,3 +71,12 @@
 - 처리: deploy 작업의 runner 라벨을 Windows로 변경하고 PowerShell 기반 이미지 교체 및 자동 복구 스크립트 구성
 - 포트: Windows loopback의 frontend `5386`, backend `8081` 사용
 - 운영 제약: self-hosted runner를 Docker Desktop을 실행하는 동일 Windows 계정으로 구성하고 서비스 계정에서 Docker CLI 접근 확인 필요
+
+## CRB-DEP-011 — Windows 운영 서버 러너 및 배포 자동화 지원
+
+- 상태: 해결
+- 영향: Windows 운영 서버에 Self-Hosted Runner를 설치하고 환경 파일 디렉터리를 구성하는 과정이 수동으로 진행되어 설정 누락 발생 가능
+- 처리: 사전 점검, 환경 디렉터리(`C:\ProgramData\CreatorRevenueBridge\.env.production`) 및 ACL 설정, Runner 다운로드와 등록을 한 번에 수행하는 `scripts/setup-production-runner.ps1` 추가
+- 추가 유틸리티: CI에서 게시된 GHCR 이미지를 로컬에서 수동/자동으로 풀하고 배포할 수 있는 `scripts/pull-and-deploy.ps1` 추가 및 워크플로 스크립트 검증 연동
+- 검증: PowerShell 구문 분석기 및 `setup-production-runner.ps1 -ConfigureEnvOnly` 실행으로 디렉터리·파일·ACL 권한 정상 적용 확인
+

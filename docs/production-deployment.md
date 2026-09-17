@@ -38,7 +38,18 @@ docker info --format '{{.OSType}}'
 
 마지막 명령은 `linux`를 출력해야 한다. Docker Desktop은 Windows Server 제품군을 지원하지 않으므로 운영 PC가 Windows Server라면 Linux VM을 배포 대상으로 사용하도록 구조를 변경해야 한다.
 
-GitHub 저장소의 `Settings → Actions → Runners`에서 Windows x64 self-hosted runner를 추가한다. 관리자 PowerShell에서 `C:\actions-runner`를 만들고 GitHub 화면이 제공하는 최신 runner를 이 경로에 설치한다. runner 구성 시 `production` 사용자 정의 라벨을 추가한다.
+GitHub 저장소의 `Settings → Actions → Runners`에서 Windows x64 self-hosted runner 등록 토큰을 발급받는다. 관리자 PowerShell에서 제공되는 자동 셋업 스크립트를 실행하면 `C:\actions-runner` 설치, `production` 라벨 구성 및 `C:\ProgramData\CreatorRevenueBridge\.env.production` 환경 파일 초기화가 한 번에 수행된다.
+
+```powershell
+# 러너 다운로드, 등록 및 환경 파일 초기화
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-production-runner.ps1 `
+  -RegistrationToken <GitHub가 일회성으로 발급한 토큰>
+
+# 또는 환경 파일과 디렉터리만 먼저 준비할 경우
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-production-runner.ps1 -ConfigureEnvOnly
+```
+
+수동으로 러너를 구성하려면 관리자 PowerShell에서 `C:\actions-runner`를 만들고 최신 runner를 이 경로에 설치한다. runner 구성 시 `production` 사용자 정의 라벨을 추가한다.
 
 ```powershell
 Set-Location C:\actions-runner
@@ -146,6 +157,16 @@ docker inspect --format '{{.Config.Image}} {{.State.Health.Status}}' `
 .\scripts\deploy-production.ps1 `
   -Tag sha-<되돌릴-40자리-커밋> `
   -EnvFile C:\ProgramData\CreatorRevenueBridge\.env.production
+```
+
+또는 현재 로컬 커밋이나 특정 태그를 바탕으로 GHCR 이미지를 즉시 가져와 배포하려면 `pull-and-deploy.ps1` 헬퍼를 사용한다.
+
+```powershell
+# 현재 git HEAD 커밋의 SHA 태그로 자동 배포
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\pull-and-deploy.ps1
+
+# 특정 이미지 태그 지정 배포
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\pull-and-deploy.ps1 -Tag sha-<40자리-커밋>
 ```
 
 첫 배포에는 이전 이미지가 없으므로 자동 복구할 대상도 없다. 배포 스크립트는 사용 중인 이전 이미지를 자동 삭제하지 않으며, 안정화 확인 후 운영자가 사용하지 않는 이미지를 별도로 정리한다.
