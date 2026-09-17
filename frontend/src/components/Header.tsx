@@ -1,6 +1,5 @@
 'use client';
 
-import { Landmark } from 'lucide-react';
 import { WalletConnect } from './WalletConnect';
 
 export type MainTab = 'marketplace' | 'portfolio';
@@ -20,17 +19,12 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
     <header className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50">
       <div className="mx-auto flex min-h-20 max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-7">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white shadow-sm">
-              <Landmark className="size-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-base font-black tracking-tight text-gray-950 sm:text-lg">
-                <span className="sm:hidden">CRB</span>
-                <span className="hidden sm:inline">Creator Revenue Bridge</span>
-              </h1>
-              <p className="mt-0.5 hidden text-xs font-medium text-gray-500 md:block">크리에이터 수익을 오늘의 자산으로</p>
-            </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-black tracking-tight text-gray-950 sm:text-lg">
+              <span className="sm:hidden">CRB</span>
+              <span className="hidden sm:inline">Creator Revenue Bridge</span>
+            </h1>
+            <p className="mt-0.5 hidden text-xs font-medium text-gray-500 md:block">크리에이터 수익을 오늘의 자산으로</p>
           </div>
 
           <nav aria-label="주요 메뉴" className="hidden rounded-xl border border-gray-200 bg-white/80 p-1 shadow-sm sm:flex">
