@@ -226,6 +226,34 @@ docker compose -f compose.dev.yaml run --rm --entrypoint cast forge block-number
 
 이 명령은 새로운 데모 컨트랙트 세트를 배포하고 투자 승인, 전체 수량 투자, 모집 확정, 크리에이터 선지급, 세 기간 정산, 상품 종료와 종료 후 투자자 수익 청구를 순서대로 실행한다. 마지막에는 수익권·mUSD 잔액과 Bridge의 보관 의무 금액을 조회해 예상값과 다르면 실패한다. 실행 후 manifest는 종료된 검증 상품을 가리키므로 프론트엔드 개발을 다시 시작할 때는 `./scripts/deploy-local.sh`를 한 번 더 실행한다.
 
+### Base Sepolia 배포 준비
+
+운영 화면은 Base Sepolia 체인 ID `84532`를 사용한다. 배포 설정은 Git에서 제외되는 별도 환경 파일에 작성하고 현재 셸로 불러온다.
+
+```bash
+cp .env.example .env.base-sepolia
+# .env.base-sepolia에 RPC, 배포자 키와 역할 주소를 입력
+set -a
+. ./.env.base-sepolia
+set +a
+```
+
+실제 트랜잭션 없이 RPC 연결, 체인 ID, 설정, 배포와 역할 이전을 시뮬레이션한다.
+
+```bash
+./scripts/deploy-base-sepolia.sh --check
+```
+
+최종 점검 이후에만 실제 배포를 실행한다.
+
+```bash
+./scripts/deploy-base-sepolia.sh --broadcast
+```
+
+`--broadcast`가 성공하면 `contracts/deployments/base-sepolia/84532.json`에 공개 가능한 컨트랙트 주소와 역할 주소를 기록하고, 동일한 manifest와 ABI를 프론트엔드·백엔드 생성 디렉터리에 동기화한다. 이 명령은 상품 생성, 투자자 허용, 테스트 잔액 지급을 수행하지 않는다. `BASE_SEPOLIA_SETTLEMENT_TOKEN_ADDRESS`를 비워 두면 누구나 mint할 수 있는 테스트 전용 mUSD를 새로 배포하고, 주소를 지정하면 해당 ERC-20을 사용한다.
+
+Base Sepolia manifest가 만들어지기 전에도 서버와 컨테이너 배포 기반은 준비할 수 있다. 현재 프론트엔드는 컨트랙트 주소를 빌드에 포함하므로 실제 투자 기능을 제공하는 최종 이미지는 테스트넷 배포 이후 생성해야 한다.
+
 컨테이너와 개발용 볼륨을 함께 정리하려면 다음 명령을 사용한다.
 
 ```bash

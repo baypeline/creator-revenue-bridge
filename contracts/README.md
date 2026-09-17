@@ -288,11 +288,14 @@ Bridge 실제 정산 토큰 잔액 >= 모든 상품 liability 합계
 5. [x] 기간별 정산·누적 청구·종료 흐름 구현
 6. [x] 다중 상품 회계 invariant와 주요 공격 시나리오 테스트 추가
 7. [x] Anvil 배포 완료 후 전체 수명주기 시나리오 재현
-8. [ ] Base Sepolia 배포 스크립트와 백엔드 이벤트 연동
+8. [x] Base Sepolia 배포 스크립트와 운영 manifest 생성
+9. [ ] 백엔드 이벤트 연동
 
 상세 발견 사항과 잔여 위험은 [컨트랙트 보안 검증 기록](../docs/contract-security-review.md)에서 관리한다.
 
 로컬 Anvil 배포와 역할·잔액·데모 상품 구성은 [DeployLocal.s.sol](script/DeployLocal.s.sol)에서 수행한다. 루트의 `scripts/deploy-local.sh`는 배포 manifest와 ABI를 프론트엔드·백엔드 생성 디렉터리에 동기화한다. `scripts/run-local-happy-path.sh`는 역할별 EOA로 모집부터 종료 후 청구까지 전체 RPC 정상 흐름과 최종 회계 상태를 검증한다.
+
+Base Sepolia 배포는 [DeployBaseSepolia.s.sol](script/DeployBaseSepolia.s.sol)에서 수행한다. 체인 ID `84532`가 아니면 중단하며, 초기 배포자 권한을 설정된 관리자·발행자·정산자 주소로 이전한다. 루트의 `scripts/deploy-base-sepolia.sh --check`는 트랜잭션 없이 실행을 시뮬레이션하고 `--broadcast`만 실제 네트워크 상태를 변경한다.
 
 현재 [foundry.toml](foundry.toml)은 Solidity `0.8.30`과 `src/`, `test/`, `script/` 경로를 지정한다. OpenZeppelin과 forge-std는 호환 버전과 commit을 고정해 설치한다.
 
