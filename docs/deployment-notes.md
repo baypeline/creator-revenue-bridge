@@ -42,3 +42,10 @@
 - 상태: 해결
 - 영향: JSON으로 생성된 ABI의 `type` 필드가 일반 문자열로 추론되어 Wagmi 다중 조회의 production 타입 검사가 실패
 - 처리: 다중 조회에 전달하는 생성 ABI를 Viem `Abi` 타입으로 명시해 동기화 산출물과 Wagmi 입력 타입 연결
+
+## CRB-DEP-007 — CI의 컨트랙트 산출물 의존성
+
+- 상태: 해결
+- 영향: 생성 ABI와 배포 정보가 Git에서 제외되어 깨끗한 checkout에서 프론트엔드 검증 불가
+- 처리: 공개된 Anvil 주소만 포함한 CI 전용 manifest를 기준으로 ABI와 클라이언트 산출물을 만든 뒤 lint와 production build 실행
+- 제한: CI manifest는 컴파일 검증 전용이며 GHCR 운영 이미지에는 Base Sepolia `84532.json`만 사용
