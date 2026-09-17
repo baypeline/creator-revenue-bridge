@@ -24,19 +24,27 @@ jobs:
       - name: Lint GitHub Actions workflow
         run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12
 
-      - name: Validate Windows deployment script
+      - name: Validate Windows deployment scripts
         shell: pwsh
         run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path 'scripts/deploy-production.ps1'),
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_ }
-            exit 1
+          $scripts = @(
+            'scripts/deploy-production.ps1',
+            'scripts/setup-production-runner.ps1',
+            'scripts/pull-and-deploy.ps1',
+            'scripts/deploy-local.ps1'
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "${script}: $_" }
+              exit 1
+            }
           }
 
   contracts:
