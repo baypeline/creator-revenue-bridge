@@ -1,6 +1,7 @@
 'use client';
 
 import { useAccount, useReadContracts } from 'wagmi';
+import type { Abi } from 'viem';
 import { useProducts } from '../hooks/useProduct';
 import { CONTRACT_ADDRESSES } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
@@ -15,7 +16,7 @@ export function Portfolio() {
     contracts: address
       ? products.map((product) => ({
           address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
-          abi: RevenueBridgeABI,
+          abi: RevenueBridgeABI as Abi,
           functionName: 'investedUnits',
           args: [BigInt(product.offeringId), address],
         }))
