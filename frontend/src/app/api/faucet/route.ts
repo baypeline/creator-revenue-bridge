@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { createWalletClient, http, parseEther, parseUnits, encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
-import { CONTRACT_ADDRESSES, IS_LOCAL_CHAIN } from '@/constants/contracts';
+import { IS_LOCAL_CHAIN } from '@/constants/contracts';
+import { resolveActiveContracts } from '@/lib/active-contracts';
 
 const getRpcUrl = async () => {
   if (process.env.WEB3_RPC_URL) return process.env.WEB3_RPC_URL;
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
     if (!address) return NextResponse.json({ error: 'No address' }, { status: 400 });
 
     const rpcUrl = await getRpcUrl();
+    const addresses = await resolveActiveContracts(rpcUrl);
     const client = createWalletClient({
       account,
       chain: foundry,
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
     });
 
     await client.sendTransaction({
-      to: CONTRACT_ADDRESSES.MUSD as `0x${string}`,
+      to: addresses.MUSD,
       data,
     });
 
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
     });
 
     await client.sendTransaction({
-      to: CONTRACT_ADDRESSES.REVENUE_BRIDGE as `0x${string}`,
+      to: addresses.REVENUE_BRIDGE,
       data: whitelistData,
     });
 

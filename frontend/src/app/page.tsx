@@ -6,7 +6,7 @@ import { Portfolio } from "../components/Portfolio";
 import { AdminPanel } from "../components/AdminPanel";
 import { Footer } from "../components/Footer";
 import { Header, type MainTab } from "../components/Header";
-import { IS_LOCAL_CHAIN } from "../constants/contracts";
+import { DEMO_FACTORY_ADDRESS } from "../constants/contracts";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<MainTab>('marketplace');
@@ -21,7 +21,7 @@ export default function Home() {
 
       <Footer />
 
-      {IS_LOCAL_CHAIN && <AdminPanel />}
+      {DEMO_FACTORY_ADDRESS && <AdminPanel />}
     </div>
   );
 }

@@ -103,6 +103,8 @@ icacls $envFile /grant:r "${env:USERNAME}:(F)" 'SYSTEM:(F)'
 
 PostgreSQL은 외부 포트를 열지 않고 Compose 내부에서만 backend와 통신한다. `database_data` 볼륨에 상품 catalog를 보존하므로 일반적인 이미지 교체나 컨테이너 재생성 후에도 데이터가 유지된다. `docker compose down --volumes`는 운영 DB까지 삭제하므로 운영 서버에서는 실행하지 않는다.
 
+운영 화면의 `데모 초기화`는 Base Sepolia Factory 소유자 지갑을 연결한 경우에만 활성화된다. 버튼을 실행하면 새 테스트 mUSD, Bridge, 수익권 토큰과 초기 상품 세 건이 하나의 트랜잭션에서 생성되고 Factory의 활성 버전이 증가한다. 운영 서버나 GitHub Actions는 배포 개인키를 보관하지 않으며 MetaMask가 트랜잭션 서명을 담당한다. 초기화 전 계약과 거래 기록은 삭제되지 않으므로 이전 주소는 온체인 감사 기록으로 계속 조회할 수 있다.
+
 GHCR 패키지가 private이면 repository의 `GITHUB_TOKEN`이 패키지를 읽을 수 있도록 패키지 설정에서 이 저장소에 접근 권한을 부여한다. 워크플로는 장기 PAT 대신 작업마다 발급되는 `GITHUB_TOKEN`으로 로그인한다.
 
 ## 도메인 연결

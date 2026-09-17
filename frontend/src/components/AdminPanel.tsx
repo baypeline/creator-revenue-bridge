@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAccount, usePublicClient, useReadContract, useWriteContract } from 'wagmi';
 import { Check, ChevronRight, Clock3, Loader2, RotateCcw, Settings, X } from 'lucide-react';
+import { DEMO_FACTORY_ADDRESS, IS_LOCAL_CHAIN } from '../constants/contracts';
+import { useActiveContracts } from '../hooks/useActiveContracts';
+import DemoDeploymentFactoryABI from '../generated/contracts/DemoDeploymentFactory.abi.json';
 
 type DemoAction = 'fund' | 'activate' | 'settle' | 'close' | 'claim' | 'reset';
 
@@ -57,13 +61,26 @@ function formatTime(value: string) {
 
 export function AdminPanel() {
   const queryClient = useQueryClient();
+  const publicClient = usePublicClient();
+  const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const { version } = useActiveContracts();
+  const { data: factoryOwner } = useReadContract({
+    address: DEMO_FACTORY_ADDRESS,
+    abi: DemoDeploymentFactoryABI,
+    functionName: 'owner',
+    query: { enabled: !!DEMO_FACTORY_ADDRESS },
+  });
+  const isFactoryOwner = IS_LOCAL_CHAIN || (
+    !!address && typeof factoryOwner === 'string' && address.toLowerCase() === factoryOwner.toLowerCase()
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [state, setState] = useState<DemoState | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !IS_LOCAL_CHAIN) return;
     fetch('/api/demo-deck', { cache: 'no-store' })
       .then(async (response) => {
         const body = await response.json();
@@ -95,10 +112,36 @@ export function AdminPanel() {
     }
   };
 
+  const redeployDemo = async () => {
+    if (IS_LOCAL_CHAIN) {
+      await runAction('reset');
+      return;
+    }
+    if (!isConnected || !isFactoryOwner || !DEMO_FACTORY_ADDRESS || !publicClient) {
+      setError('Factory 소유자 지갑을 Base Sepolia에 연결해주세요.');
+      return;
+    }
+    try {
+      setIsPending(true);
+      setError('');
+      const hash = await writeContractAsync({
+        address: DEMO_FACTORY_ADDRESS,
+        abi: DemoDeploymentFactoryABI,
+        functionName: 'resetDemo',
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      await queryClient.invalidateQueries();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setIsPending(false);
+    }
+  };
+
   if (!isOpen) {
     return (
       <button onClick={() => { setError(''); setIsOpen(true); }} className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-blue-500/30 bg-gray-950 px-4 py-3 text-sm font-bold text-white shadow-2xl transition hover:-translate-y-0.5 hover:bg-black" title="Anvil 데모 덱 열기">
-        <Settings className="h-5 w-5 text-cyan-300" /> 데모 덱
+        <Settings className="h-5 w-5 text-cyan-300" /> {IS_LOCAL_CHAIN ? '데모 덱' : '데모 초기화'}
       </button>
     );
   }
@@ -108,12 +151,12 @@ export function AdminPanel() {
       <div className="bg-gray-950 px-5 pb-5 pt-4 text-white">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300">Anvil scenario control</p>
-            <h2 className="mt-1 text-lg font-black">로컬 데모 덱</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300">{IS_LOCAL_CHAIN ? 'Anvil scenario control' : 'Base Sepolia deployment'}</p>
+            <h2 className="mt-1 text-lg font-black">{IS_LOCAL_CHAIN ? '로컬 데모 덱' : '데모 환경 초기화'}</h2>
           </div>
           <button onClick={() => setIsOpen(false)} className="rounded-full p-1.5 text-gray-400 transition hover:bg-white/10 hover:text-white" aria-label="데모 덱 닫기"><X className="h-5 w-5" /></button>
         </div>
-        {state && (
+        {IS_LOCAL_CHAIN && state && (
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-white/10 p-3"><p className="text-[10px] text-gray-400">상태</p><p className="mt-1 text-sm font-bold text-cyan-200">{state.statusLabel}</p></div>
             <div className="rounded-xl bg-white/10 p-3"><p className="text-[10px] text-gray-400">모집</p><p className="mt-1 text-sm font-bold">{state.raisedUnits}/{state.unitsForSale}</p></div>
@@ -123,8 +166,18 @@ export function AdminPanel() {
       </div>
 
       <div className="overflow-y-auto p-5">
-        {!state && !error && <div className="flex items-center justify-center gap-2 py-16 text-sm font-medium text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /> 상태 확인 중</div>}
-        {state && (
+        {!IS_LOCAL_CHAIN && (
+          <div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+              현재 버전 <strong>v{version.toString()}</strong>을 보존하고 새 mUSD·Bridge·수익권 토큰과 데모 상품 세 건을 배포합니다. 기존 컨트랙트의 기록은 삭제되지 않습니다.
+            </div>
+            <button onClick={redeployDemo} disabled={isPending || !isConnected || !isFactoryOwner} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none">
+              {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> 배포 중</> : isFactoryOwner ? '새 데모 환경 배포' : 'Factory 소유자 지갑 연결 필요'}
+            </button>
+          </div>
+        )}
+        {IS_LOCAL_CHAIN && !state && !error && <div className="flex items-center justify-center gap-2 py-16 text-sm font-medium text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /> 상태 확인 중</div>}
+        {IS_LOCAL_CHAIN && state && (
           <>
             <div className="mb-5 flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-800"><Clock3 className="h-4 w-4 shrink-0" /><span>체인 시각 <strong>{formatTime(state.chainTime)} UTC</strong></span></div>
             <ol className="space-y-2">
@@ -152,7 +205,7 @@ export function AdminPanel() {
             <button onClick={() => nextAction && runAction(nextAction)} disabled={!nextAction || isPending} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none">
               {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> 처리 중</> : nextAction ? '다음 단계 실행' : '데모 시나리오 완료'}
             </button>
-            <button onClick={() => runAction('reset')} disabled={isPending} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40"><RotateCcw className="h-3.5 w-3.5" /> 처음 상태로 되돌리기</button>
+            <button onClick={redeployDemo} disabled={isPending} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40"><RotateCcw className="h-3.5 w-3.5" /> 새 컨트랙트로 초기화</button>
           </>
         )}
         {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-700">{error}</div>}

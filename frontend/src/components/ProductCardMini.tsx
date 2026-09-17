@@ -4,7 +4,8 @@
 import { Calendar, TrendingUp } from 'lucide-react';
 import { OfferingResponse } from '../types/product';
 import { useReadContract } from 'wagmi';
-import { CONTRACT_ADDRESSES } from '../constants/contracts';
+import { useActiveContracts } from '../hooks/useActiveContracts';
+import { offeringStatusLabel } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { formatUnits } from 'viem';
 
@@ -14,8 +15,9 @@ interface ProductCardMiniProps {
 }
 
 export function ProductCardMini({ product, onClick }: ProductCardMiniProps) {
+  const { addresses } = useActiveContracts();
   const { data: offeringData } = useReadContract({
-    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    address: addresses.REVENUE_BRIDGE,
     abi: RevenueBridgeABI,
     functionName: 'getOffering',
     args: [BigInt(product.offeringId)],
@@ -24,7 +26,10 @@ export function ProductCardMini({ product, onClick }: ProductCardMiniProps) {
     }
   });
 
-  const offering = offeringData as { raisedUnits?: bigint } | undefined;
+  const offering = offeringData as { status?: number; raisedUnits?: bigint; revenueEnd?: bigint } | undefined;
+  const statusLabel = offeringStatusLabel(offering?.status, product.statusLabel);
+  const status = offering?.status === undefined ? product.status : Number(offering.status) === 1 ? 'Funding' : 'Other';
+  const revenueEnd = offering?.revenueEnd ? new Date(Number(offering.revenueEnd) * 1000) : new Date(product.terms.revenueEnd);
   const unitPriceRaw = Number(formatUnits(BigInt(product.terms.unitPrice.raw), 6));
   const raisedUnits = offering?.raisedUnits ? Number(offering.raisedUnits) : 0;
   const currentAmount = raisedUnits * unitPriceRaw;
@@ -43,7 +48,7 @@ export function ProductCardMini({ product, onClick }: ProductCardMiniProps) {
           className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur text-gray-900 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm">
-          {product.statusLabel}
+          {statusLabel}
         </div>
       </div>
       <div className="p-5 flex-1 flex flex-col">
@@ -58,13 +63,13 @@ export function ProductCardMini({ product, onClick }: ProductCardMiniProps) {
             </div>
             <div className="flex items-center gap-1 text-gray-500 text-xs">
               <Calendar className="w-3 h-3" />
-              {new Date(product.terms.revenueEnd).getUTCFullYear()}년 정산
+              {revenueEnd.getUTCFullYear()}년 정산
             </div>
           </div>
 
           <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1.5 overflow-hidden">
             <div 
-              className={`h-1.5 rounded-full ${product.status === 'Funding' ? 'bg-blue-600' : 'bg-gray-400'}`}
+              className={`h-1.5 rounded-full ${status === 'Funding' ? 'bg-blue-600' : 'bg-gray-400'}`}
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>

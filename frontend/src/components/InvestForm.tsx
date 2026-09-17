@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits } from 'viem';
-import { CONTRACT_ADDRESSES, ERC20_ABI, IS_LOCAL_CHAIN } from '../constants/contracts';
+import { ERC20_ABI, IS_LOCAL_CHAIN } from '../constants/contracts';
+import { useActiveContracts } from '../hooks/useActiveContracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { Loader2 } from 'lucide-react';
 import { useProduct } from '../hooks/useProduct';
@@ -16,13 +17,14 @@ export function InvestForm({ productId }: InvestFormProps) {
   const [units, setUnits] = useState('');
   const { address, isConnected } = useAccount();
   const { product } = useProduct(productId);
+  const { addresses } = useActiveContracts();
 
   // Read mUSD Allowance
   const { data: allowance, refetch: refetchAllowance, isFetching: isFetchingAllowance } = useReadContract({
-    address: CONTRACT_ADDRESSES.MUSD,
+    address: addresses.MUSD,
     abi: ERC20_ABI,
     functionName: 'allowance',
-    args: address ? [address, CONTRACT_ADDRESSES.REVENUE_BRIDGE] : undefined,
+    args: address ? [address, addresses.REVENUE_BRIDGE] : undefined,
     query: {
       enabled: !!address,
     }
@@ -30,7 +32,7 @@ export function InvestForm({ productId }: InvestFormProps) {
 
   // Read whitelist status
   const { data: isAllowed, refetch: refetchAllowed } = useReadContract({
-    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    address: addresses.REVENUE_BRIDGE,
     abi: RevenueBridgeABI,
     functionName: 'allowedInvestors',
     args: address ? [address] : undefined,
@@ -41,7 +43,7 @@ export function InvestForm({ productId }: InvestFormProps) {
 
   // Read offering data to calculate remaining units (always at top level)
   const { data: offeringData } = useReadContract({
-    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    address: addresses.REVENUE_BRIDGE,
     abi: RevenueBridgeABI,
     functionName: 'getOffering',
     args: [BigInt(productId)],
@@ -95,9 +97,10 @@ export function InvestForm({ productId }: InvestFormProps) {
     );
   }
 
-  const offering = offeringData as { raisedUnits?: bigint } | undefined;
+  const offering = offeringData as { status?: number; raisedUnits?: bigint } | undefined;
   const raisedUnits = offering?.raisedUnits ? Number(offering.raisedUnits) : 0;
   const remainingUnits = product.terms.unitsForSale - raisedUnits;
+  const isFunding = offering?.status === undefined || Number(offering.status) === 1;
 
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw); // e.g. 100_000_000 for 100 mUSD
   const parsedUnits = units ? BigInt(units) : BigInt(0);
@@ -111,17 +114,17 @@ export function InvestForm({ productId }: InvestFormProps) {
   const handleApprove = () => {
     if (!units || requiredAmount <= BigInt(0) || isExceedingCapacity) return;
     writeContract({
-      address: CONTRACT_ADDRESSES.MUSD,
+      address: addresses.MUSD,
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [CONTRACT_ADDRESSES.REVENUE_BRIDGE, requiredAmount],
+      args: [addresses.REVENUE_BRIDGE, requiredAmount],
     });
   };
 
   const handleInvest = () => {
     if (!units || requiredAmount <= BigInt(0) || isExceedingCapacity) return;
     writeContract({
-      address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+      address: addresses.REVENUE_BRIDGE,
       abi: RevenueBridgeABI,
       functionName: 'invest',
       args: [BigInt(productId), parsedUnits],
@@ -147,14 +150,14 @@ export function InvestForm({ productId }: InvestFormProps) {
           placeholder={`최대 ${remainingUnits} 구좌`}
           value={units}
           onChange={(e) => setUnits(e.target.value)}
-          disabled={isPending || remainingUnits === 0}
+          disabled={isPending || remainingUnits === 0 || !isFunding}
           className={`flex-1 bg-gray-50 border ${isExceedingCapacity ? 'border-red-400 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-500'} rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:bg-white transition-all disabled:opacity-50`}
         />
         
         {needsApproval ? (
           <button 
             onClick={handleApprove}
-            disabled={isPending || !units || requiredAmount <= BigInt(0) || isExceedingCapacity}
+            disabled={isPending || !isFunding || !units || requiredAmount <= BigInt(0) || isExceedingCapacity}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
@@ -166,11 +169,13 @@ export function InvestForm({ productId }: InvestFormProps) {
         ) : (
           <button 
             onClick={handleInvest}
-            disabled={isPending || !units || requiredAmount <= BigInt(0) || isExceedingCapacity || remainingUnits === 0}
+            disabled={isPending || !isFunding || !units || requiredAmount <= BigInt(0) || isExceedingCapacity || remainingUnits === 0}
             className="bg-gray-900 hover:bg-black text-white font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> {isFetchingAllowance ? '동기화 중...' : '처리 중...'}</>
+            ) : !isFunding ? (
+              '모집 종료'
             ) : remainingUnits === 0 ? (
               '모집 마감'
             ) : (

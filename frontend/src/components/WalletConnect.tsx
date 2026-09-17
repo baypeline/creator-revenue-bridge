@@ -5,7 +5,8 @@ import { Wallet } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { formatUnits, parseAbi } from 'viem';
 import { baseSepolia, foundry } from 'viem/chains';
-import { CHAIN_ID, CONTRACT_ADDRESSES, IS_LOCAL_CHAIN } from '../constants/contracts';
+import { CHAIN_ID, IS_LOCAL_CHAIN } from '../constants/contracts';
+import { useActiveContracts } from '../hooks/useActiveContracts';
 
 const TARGET_CHAIN_NAME = IS_LOCAL_CHAIN ? 'Anvil' : 'Base Sepolia';
 
@@ -34,9 +35,10 @@ export function WalletConnect() {
   const { connectors, connect, error: connectError, isPending: isConnectPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
+  const { addresses } = useActiveContracts();
 
   const { data: balanceData, refetch } = useReadContract({
-    address: CONTRACT_ADDRESSES.MUSD as `0x${string}`,
+    address: addresses.MUSD,
     abi: parseAbi(['function balanceOf(address) view returns (uint256)']),
     functionName: 'balanceOf',
     args: address ? [address] : undefined,

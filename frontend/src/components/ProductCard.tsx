@@ -5,15 +5,17 @@ import { useProduct } from '../hooks/useProduct';
 import { Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { InvestForm } from './InvestForm';
 import { useReadContract } from 'wagmi';
-import { CONTRACT_ADDRESSES } from '../constants/contracts';
+import { useActiveContracts } from '../hooks/useActiveContracts';
+import { offeringStatusLabel } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { formatUnits } from 'viem';
 
 export function ProductCard({ productId }: { productId: string }) {
   const { product, isLoading } = useProduct(productId);
+  const { addresses } = useActiveContracts();
 
   const { data: offeringData } = useReadContract({
-    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+    address: addresses.REVENUE_BRIDGE,
     abi: RevenueBridgeABI,
     functionName: 'getOffering',
     args: [BigInt(productId)],
@@ -38,7 +40,9 @@ export function ProductCard({ productId }: { productId: string }) {
     );
   }
 
-  const offering = offeringData as { raisedUnits?: bigint } | undefined;
+  const offering = offeringData as { status?: number; raisedUnits?: bigint; revenueEnd?: bigint } | undefined;
+  const statusLabel = offeringStatusLabel(offering?.status, product.statusLabel);
+  const revenueEnd = offering?.revenueEnd ? new Date(Number(offering.revenueEnd) * 1000) : new Date(product.terms.revenueEnd);
   const unitPriceRaw = Number(formatUnits(BigInt(product.terms.unitPrice.raw), 6));
   const raisedUnits = offering?.raisedUnits ? Number(offering.raisedUnits) : 0;
   const currentAmount = raisedUnits * unitPriceRaw;
@@ -55,7 +59,7 @@ export function ProductCard({ productId }: { productId: string }) {
           className="w-full h-full object-cover opacity-80"
         />
         <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
-          {product.statusLabel}
+          {statusLabel}
         </div>
       </div>
 
@@ -80,7 +84,7 @@ export function ProductCard({ productId }: { productId: string }) {
               <Calendar className="w-4 h-4" /> 정산 만기일
             </div>
             <div className="text-xl font-bold text-gray-900 mt-1">
-              {new Date(product.terms.revenueEnd).toLocaleDateString('ko-KR', { timeZone: 'UTC' })}
+              {revenueEnd.toLocaleDateString('ko-KR', { timeZone: 'UTC' })}
             </div>
           </div>
         </div>

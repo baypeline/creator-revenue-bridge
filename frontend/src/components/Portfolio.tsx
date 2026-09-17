@@ -3,7 +3,7 @@
 import { useAccount, useReadContracts } from 'wagmi';
 import type { Abi } from 'viem';
 import { useProducts } from '../hooks/useProduct';
-import { CONTRACT_ADDRESSES } from '../constants/contracts';
+import { useActiveContracts } from '../hooks/useActiveContracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { PortfolioCard } from './PortfolioCard';
 import { Wallet } from 'lucide-react';
@@ -11,11 +11,12 @@ import { Wallet } from 'lucide-react';
 export function Portfolio() {
   const { address, isConnected } = useAccount();
   const { products, isLoading: productsLoading } = useProducts();
+  const { addresses } = useActiveContracts();
 
   const { data: investedData, isLoading: isContractLoading } = useReadContracts({
     contracts: address
       ? products.map((product) => ({
-          address: CONTRACT_ADDRESSES.REVENUE_BRIDGE,
+          address: addresses.REVENUE_BRIDGE,
           abi: RevenueBridgeABI as Abi,
           functionName: 'investedUnits',
           args: [BigInt(product.offeringId), address],

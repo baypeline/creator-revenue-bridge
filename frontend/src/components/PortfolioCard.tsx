@@ -1,7 +1,8 @@
 'use client';
 
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { CONTRACT_ADDRESSES } from '../constants/contracts';
+import { useActiveContracts } from '../hooks/useActiveContracts';
+import { offeringStatusLabel } from '../constants/contracts';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { OfferingResponse } from '../types/product';
 import { formatUnits } from 'viem';
@@ -15,16 +16,23 @@ interface PortfolioCardProps {
 
 export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
   const { address } = useAccount();
+  const { addresses } = useActiveContracts();
 
   // Read claimable amount
   const { data: claimableData, refetch: refetchClaimable } = useReadContract({
-    address: CONTRACT_ADDRESSES.REVENUE_BRIDGE as `0x${string}`,
+    address: addresses.REVENUE_BRIDGE,
     abi: RevenueBridgeABI,
     functionName: 'claimable',
     args: address ? [BigInt(product.offeringId), address] : undefined,
     query: {
       enabled: !!address,
     }
+  });
+  const { data: offeringData } = useReadContract({
+    address: addresses.REVENUE_BRIDGE,
+    abi: RevenueBridgeABI,
+    functionName: 'getOffering',
+    args: [BigInt(product.offeringId)],
   });
 
   // Write claim transaction
@@ -43,11 +51,13 @@ export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw);
   const investedAmount = investedUnits * unitPriceRaw;
   const claimableAmount = claimableData ? (claimableData as bigint) : BigInt(0);
+  const offering = offeringData as { status?: number } | undefined;
+  const statusLabel = offeringStatusLabel(offering?.status, product.statusLabel || '운영 중');
 
   const handleClaim = () => {
     if (claimableAmount <= BigInt(0)) return;
     writeContract({
-      address: CONTRACT_ADDRESSES.REVENUE_BRIDGE as `0x${string}`,
+      address: addresses.REVENUE_BRIDGE,
       abi: RevenueBridgeABI,
       functionName: 'claim',
       args: [BigInt(product.offeringId)],
@@ -64,7 +74,7 @@ export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
             {product.title}
           </h3>
           <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md shrink-0">
-            {product.statusLabel || '운영 중'}
+            {statusLabel}
           </span>
         </div>
         <p className="text-sm text-gray-500 font-medium">{product.creator.name}</p>
