@@ -24,13 +24,13 @@ try {
 
     $enc = New-Object System.Text.UTF8Encoding $false
     $rb = docker compose -f $compose_file run --rm --no-deps forge inspect src/RevenueBridge.sol:RevenueBridge abi --json
-    [System.IO.File]::WriteAllText((Join-Path $temp_dir "RevenueBridge.abi.json"), $rb, $enc)
+    [System.IO.File]::WriteAllText((Join-Path $temp_dir "RevenueBridge.abi.json"), ($rb -join [Environment]::NewLine), $enc)
 
     $rr = docker compose -f $compose_file run --rm --no-deps forge inspect src/RevenueRightToken.sol:RevenueRightToken abi --json
-    [System.IO.File]::WriteAllText((Join-Path $temp_dir "RevenueRightToken.abi.json"), $rr, $enc)
+    [System.IO.File]::WriteAllText((Join-Path $temp_dir "RevenueRightToken.abi.json"), ($rr -join [Environment]::NewLine), $enc)
 
     $ms = docker compose -f $compose_file run --rm --no-deps forge inspect src/mocks/MockSettlementToken.sol:MockSettlementToken abi --json
-    [System.IO.File]::WriteAllText((Join-Path $temp_dir "MockSettlementToken.abi.json"), $ms, $enc)
+    [System.IO.File]::WriteAllText((Join-Path $temp_dir "MockSettlementToken.abi.json"), ($ms -join [Environment]::NewLine), $enc)
 
     New-Item -ItemType Directory -Force -Path $frontend_target | Out-Null
     New-Item -ItemType Directory -Force -Path $backend_target | Out-Null
@@ -39,7 +39,7 @@ try {
     Copy-Item -Path $deployment_source -Destination (Join-Path $backend_target "deployment.json") -Force
     Copy-Item -Path $client_metadata_source -Destination (Join-Path $frontend_target "RevenueBridge.client.json") -Force
     Copy-Item -Path $client_metadata_source -Destination (Join-Path $backend_target "RevenueBridge.client.json") -Force
-    
+
     Get-ChildItem -Path $temp_dir -Filter "*.abi.json" | ForEach-Object {
         Copy-Item -Path $_.FullName -Destination (Join-Path $frontend_target $_.Name) -Force
         Copy-Item -Path $_.FullName -Destination (Join-Path $backend_target $_.Name) -Force

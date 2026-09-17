@@ -7,7 +7,7 @@
 
 ## 검증 현황
 
-- 전체 테스트: 40개 통과
+- 전체 테스트: 45개 통과
 - 회계 invariant: 128 runs, 8,192 calls, revert 0회
 - `RevenueBridge` 커버리지: 라인 90.87%, 구문 93.38%, 분기 55.00%, 함수 100%
 - 검증 명령: `forge clean && forge test --summary`, `forge coverage --report summary`

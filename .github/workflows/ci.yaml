@@ -1,0 +1,220 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflow:
+    name: Workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Lint GitHub Actions workflow
+        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12
+
+      - name: Validate Windows deployment script
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/deploy-production.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+
+  contracts:
+    name: Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Run Foundry tests
+        run: docker compose -f compose.dev.yaml run --rm --no-deps forge test
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: |
+            backend/*.gradle
+            backend/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Run backend tests
+        run: sh ./gradlew test --no-daemon
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate CI contract artifacts
+        run: ./scripts/sync-contract-artifacts.sh contracts/deployments/ci/31337.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Lint frontend
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+  publish:
+    name: Publish production images
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [workflow, contracts, backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      release_ready: ${{ steps.release.outputs.ready }}
+      image_tag: ${{ steps.release.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Check Base Sepolia release manifest
+        id: release
+        shell: bash
+        run: |
+          manifest=contracts/deployments/base-sepolia/84532.json
+          if [[ ! -s "$manifest" ]]; then
+            echo "::notice::Base Sepolia manifest is absent; CI passed without publishing production images."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 scripts/validate-deployment-manifest.py \
+            "$manifest" \
+            --chain-id 84532 \
+            --network base-sepolia \
+            --token-base-uri 'https://pricetext.store/api/revenue-rights/{id}.json'
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Base Sepolia contract artifacts
+        if: steps.release.outputs.ready == 'true'
+        run: ./scripts/sync-contract-artifacts.sh contracts/deployments/base-sepolia/84532.json
+
+      - name: Log in to GHCR
+        if: steps.release.outputs.ready == 'true'
+        shell: bash
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Build production images
+        if: steps.release.outputs.ready == 'true'
+        shell: bash
+        run: |
+          frontend_image="ghcr.io/${GITHUB_REPOSITORY}-frontend"
+          backend_image="ghcr.io/${GITHUB_REPOSITORY}-backend"
+          image_tag="sha-${GITHUB_SHA}"
+          docker build \
+            --target production \
+            --build-arg "VCS_REF=${GITHUB_SHA}" \
+            --tag "${frontend_image}:${image_tag}" \
+            --tag "${frontend_image}:latest" \
+            frontend
+          docker build \
+            --target production \
+            --build-arg "VCS_REF=${GITHUB_SHA}" \
+            --tag "${backend_image}:${image_tag}" \
+            --tag "${backend_image}:latest" \
+            backend
+
+      - name: Push production images
+        if: steps.release.outputs.ready == 'true'
+        shell: bash
+        run: |
+          frontend_image="ghcr.io/${GITHUB_REPOSITORY}-frontend"
+          backend_image="ghcr.io/${GITHUB_REPOSITORY}-backend"
+          image_tag="sha-${GITHUB_SHA}"
+          docker push "${frontend_image}:${image_tag}"
+          docker push "${backend_image}:${image_tag}"
+          docker push "${frontend_image}:latest"
+          docker push "${backend_image}:latest"
+
+  deploy:
+    name: Deploy production
+    if: needs.publish.outputs.release_ready == 'true'
+    needs: publish
+    runs-on: [self-hosted, windows, x64, production]
+    timeout-minutes: 15
+    environment: production
+    concurrency:
+      group: production-deployment
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Log in to GHCR
+        shell: pwsh
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $env:GHCR_TOKEN | docker login ghcr.io --username '${{ github.actor }}' --password-stdin
+          if ($LASTEXITCODE -ne 0) {
+            throw 'GHCR login failed.'
+          }
+
+      - name: Replace production containers
+        shell: pwsh
+        env:
+          DEPLOY_ENV_FILE: ${{ vars.DEPLOY_ENV_FILE || 'C:/ProgramData/CreatorRevenueBridge/.env.production' }}
+          IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}
+        run: ./scripts/deploy-production.ps1 -Tag $env:IMAGE_TAG -EnvFile $env:DEPLOY_ENV_FILE

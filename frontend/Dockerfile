@@ -20,10 +20,14 @@ RUN npm run build
 
 FROM node:22-alpine AS production
 WORKDIR /app
+ARG VCS_REF=unknown
 ENV HOSTNAME=0.0.0.0
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+
+LABEL org.opencontainers.image.source="https://github.com/baypeline/creator-revenue-bridge" \
+      org.opencontainers.image.revision=$VCS_REF
 
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
