@@ -94,3 +94,11 @@
 - 추가 문제: 운영 서버의 PowerShell 실행 정책이 GitHub Actions가 생성한 임시 `.ps1` 파일 실행을 차단
 - 처리: Windows self-hosted runner에서 실행되는 점검, GHCR 로그인과 배포 단계를 기본 `powershell` 및 프로세스 한정 `ExecutionPolicy Bypass`로 변경
 - 검증: `Production runner check` 실제 재실행으로 Docker와 Compose 접근 확인 예정
+
+## CRB-DEP-014 — Windows 러너 GHCR 로그인 파이프 개행 오류 및 표준 액션 전환
+
+- 문제: Windows runner에서 PowerShell 파이프(`$env:GHCR_TOKEN | docker login ...`)로 로그인 시, PowerShell의 개행(`\r\n`)이 토큰 끝에 전달되어 `denied: denied` 및 로그인 실패 발생
+- 원인: Windows PowerShell 5.1의 파이프라인 개행(`0x0D 0x0A`) 누적으로 인해 Docker CLI가 토큰 끝의 캐리지 리턴을 패스워드 일부로 인식
+- 처리: 셸 스크립트 파이프 방식 대신 크로스 플랫폼 표준 액션인 `docker/login-action@v3`을 `publish` 및 `deploy` 단계에 적용
+- 검증: `actionlint` 정적 검증 통과 및 Node.js 직접 스트림 입력을 통한 인증 정합성 확보
+
