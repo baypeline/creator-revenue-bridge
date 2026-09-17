@@ -49,3 +49,10 @@
 - 영향: 생성 ABI와 배포 정보가 Git에서 제외되어 깨끗한 checkout에서 프론트엔드 검증 불가
 - 처리: 공개된 Anvil 주소만 포함한 CI 전용 manifest를 기준으로 ABI와 클라이언트 산출물을 만든 뒤 lint와 production build 실행
 - 제한: CI manifest는 컴파일 검증 전용이며 GHCR 운영 이미지에는 Base Sepolia `84532.json`만 사용
+
+## CRB-DEP-008 — 운영 컨테이너 교체 상태 판정
+
+- 상태: 해결
+- 영향: 프로세스 실행 여부만으로는 프론트엔드와 백엔드가 실제 요청을 처리할 수 있는지 판정 불가
+- 처리: 양쪽 애플리케이션에 revision을 포함하는 health API를 추가하고 운영 Compose의 의존성과 상태 검사에 연결
+- 보안 설정: 운영 포트를 기본적으로 loopback에만 바인딩하고 컨테이너 권한 상승 방지 및 로그 파일 크기 제한 구성

@@ -23,6 +23,14 @@ class OfferingApiIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
+    void getHealthReturnsServiceStatus() throws Exception {
+        mockMvc.perform(get("/api/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"))
+                .andExpect(jsonPath("$.service").value("backend"));
+    }
+
+    @Test
     void getOfferingReturnsOffChainMetadataAndTerms() throws Exception {
         mockMvc.perform(get("/api/offerings/1"))
                 .andExpect(status().isOk())
