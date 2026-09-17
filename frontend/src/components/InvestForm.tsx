@@ -10,6 +10,7 @@ import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
 import { Loader2 } from 'lucide-react';
 import { useProduct } from '../hooks/useProduct';
 import { formatNumber } from '../lib/format';
+import { notifyChainStateChanged } from '../lib/chain-state';
 
 interface InvestFormProps {
   productId: string;
@@ -55,6 +56,7 @@ export function InvestForm({ productId }: InvestFormProps) {
     args: [BigInt(productId)],
     query: {
       enabled: !!productId,
+      refetchInterval: 5000,
     }
   });
 
@@ -142,6 +144,7 @@ export function InvestForm({ productId }: InvestFormProps) {
         refetchOffering(),
         queryClient.invalidateQueries(),
       ]);
+      notifyChainStateChanged();
       setFlowStatus('success');
     } catch (reason) {
       const message = reason instanceof Error ? reason.message.toLowerCase() : '';

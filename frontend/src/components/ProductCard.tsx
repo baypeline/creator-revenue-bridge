@@ -19,7 +19,7 @@ export function ProductCard({ productId }: { productId: string }) {
     abi: RevenueBridgeABI,
     functionName: 'getOffering',
     args: [BigInt(productId)],
-    query: { enabled: !!productId && !isLoading && !!product },
+    query: { enabled: !!productId && !isLoading && !!product, refetchInterval: 5000 },
   });
 
   if (isLoading) {

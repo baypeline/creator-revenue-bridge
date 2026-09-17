@@ -128,7 +128,7 @@ function buildMetadata(
     name: offering.title,
     description: offering.description,
     image: offering.creator.imageUrl,
-    external_url: `${siteOrigin}/?offering=${tokenId}`,
+    external_url: `${siteOrigin}/marketplace?offering=${tokenId}`,
     attributes,
     properties: {
       offeringId: tokenId.toString(),

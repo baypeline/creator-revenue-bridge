@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAccount, useReadContract } from 'wagmi';
 import { Check, ChevronRight, Clock3, Loader2, RotateCcw, Settings, X } from 'lucide-react';
-import { IS_LOCAL_CHAIN } from '../constants/contracts';
+import { DEMO_FACTORY_ADDRESS, IS_LOCAL_CHAIN } from '../constants/contracts';
 import { BaseSepoliaDemoDeck } from './BaseSepoliaDemoDeck';
+import DemoDeploymentFactoryABI from '../generated/contracts/DemoDeploymentFactory.abi.json';
+import { CHAIN_STATE_CHANGED_EVENT, notifyChainStateChanged } from '../lib/chain-state';
 
 type DemoAction = 'fund' | 'activate' | 'settle' | 'close' | 'claim' | 'reset';
 
@@ -59,6 +62,16 @@ function formatTime(value: string) {
 
 export function AdminPanel() {
   const queryClient = useQueryClient();
+  const { address, isConnected } = useAccount();
+  const { data: factoryOwner } = useReadContract({
+    address: DEMO_FACTORY_ADDRESS,
+    abi: DemoDeploymentFactoryABI,
+    functionName: 'owner',
+    query: { enabled: !IS_LOCAL_CHAIN && !!DEMO_FACTORY_ADDRESS },
+  });
+  const canAccess = IS_LOCAL_CHAIN || (
+    isConnected && !!address && typeof factoryOwner === 'string' && address.toLowerCase() === factoryOwner.toLowerCase()
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [state, setState] = useState<DemoState | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -73,6 +86,25 @@ export function AdminPanel() {
         setState(body);
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !IS_LOCAL_CHAIN) return;
+    const refreshState = () => {
+      fetch('/api/demo-deck', { cache: 'no-store' })
+        .then(async (response) => {
+          const body = await response.json();
+          if (!response.ok) throw new Error(body.error ?? '데모 상태를 불러오지 못했습니다.');
+          setState(body);
+        })
+        .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+    };
+    const poller = window.setInterval(refreshState, 5000);
+    window.addEventListener(CHAIN_STATE_CHANGED_EVENT, refreshState);
+    return () => {
+      window.clearInterval(poller);
+      window.removeEventListener(CHAIN_STATE_CHANGED_EVENT, refreshState);
+    };
   }, [isOpen]);
 
   const nextAction = useMemo(() => state ? currentAction(state) : null, [state]);
@@ -90,6 +122,7 @@ export function AdminPanel() {
       if (!response.ok) throw new Error(body.error ?? '데모 단계를 실행하지 못했습니다.');
       setState(body);
       await queryClient.invalidateQueries();
+      notifyChainStateChanged();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -100,6 +133,8 @@ export function AdminPanel() {
   const redeployDemo = async () => {
     await runAction('reset');
   };
+
+  if (!canAccess) return null;
 
   if (!isOpen) {
     return (

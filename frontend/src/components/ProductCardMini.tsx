@@ -28,7 +28,7 @@ export function ProductCardMini({ product, onClick }: ProductCardMiniProps) {
     abi: RevenueBridgeABI,
     functionName: 'getOffering',
     args: [BigInt(product.offeringId)],
-    query: { enabled: !!product },
+    query: { enabled: !!product, refetchInterval: 5000 },
   });
 
   const offering = offeringData as { status?: number; raisedUnits?: bigint; fundingDeadline?: bigint } | undefined;

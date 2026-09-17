@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, CircleDollarSign, Copy, LogOut, Wallet } from 'lucide-react';
+import { AlertCircle, Check, CheckCircle2, ChevronDown, CircleDollarSign, Copy, LogOut, Wallet } from 'lucide-react';
 import { formatUnits, parseAbi } from 'viem';
 import { baseSepolia, foundry } from 'viem/chains';
 import { useAccount, useConnect, useDisconnect, useReadContract, useSwitchChain } from 'wagmi';
 import { CHAIN_ID, IS_LOCAL_CHAIN } from '../constants/contracts';
 import { useActiveContracts } from '../hooks/useActiveContracts';
 import { formatAddress, formatNumber } from '../lib/format';
+import { CHAIN_STATE_CHANGED_EVENT, notifyChainStateChanged } from '../lib/chain-state';
 
 const TARGET_CHAIN_NAME = IS_LOCAL_CHAIN ? 'Anvil 로컬' : 'Base Sepolia';
 
@@ -18,12 +19,26 @@ const getConnectErrorMessage = (message: string) => {
   return '지갑 연결에 실패했습니다. 메타마스크 상태를 확인한 뒤 다시 시도해주세요.';
 };
 
+type WalletNotice = { type: 'success' | 'error'; message: string } | null;
+
+function WalletToast({ notice }: { notice: WalletNotice }) {
+  if (!notice) return null;
+  return (
+    <div className={`fixed right-5 top-24 z-[80] flex max-w-sm items-start gap-3 rounded-2xl border bg-white px-4 py-3 text-sm font-semibold shadow-xl ${notice.type === 'success' ? 'border-emerald-200 text-emerald-800' : 'border-red-200 text-red-700'}`} role={notice.type === 'error' ? 'alert' : 'status'} aria-live="polite">
+      {notice.type === 'success' ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />}
+      <span>{notice.message}</span>
+    </div>
+  );
+}
+
 export function WalletConnect() {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isFunding, setIsFunding] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [notice, setNotice] = useState<WalletNotice>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const noticeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -51,21 +66,40 @@ export function WalletConnect() {
     abi: parseAbi(['function balanceOf(address) view returns (uint256)']),
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    query: { enabled: mounted && isConnected && !!address },
+    query: {
+      enabled: mounted && isConnected && !!address,
+      refetchInterval: mounted && isConnected ? 5000 : false,
+    },
   });
+
+  useEffect(() => {
+    const refreshBalance = () => void refetch();
+    window.addEventListener(CHAIN_STATE_CHANGED_EVENT, refreshBalance);
+    return () => window.removeEventListener(CHAIN_STATE_CHANGED_EVENT, refreshBalance);
+  }, [refetch]);
+
+  useEffect(() => () => {
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+  }, []);
 
   const balance = balanceData !== undefined ? Number(formatUnits(balanceData as bigint, 6)) : 0;
 
+  const showNotice = (nextNotice: Exclude<WalletNotice, null>) => {
+    setNotice(nextNotice);
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setNotice(null), 3500);
+  };
+
   const handleConnect = () => {
     if (isConnectPending) {
-      alert('메타마스크에서 진행 중인 지갑 연결 요청을 먼저 확인해주세요.');
+      showNotice({ type: 'error', message: '메타마스크에서 진행 중인 지갑 연결 요청을 먼저 확인해주세요.' });
       return;
     }
     if (!connectors?.length) {
-      alert('브라우저에 MetaMask 확장 프로그램을 설치한 뒤 다시 시도해주세요.');
+      showNotice({ type: 'error', message: '브라우저에 MetaMask 확장 프로그램을 설치한 뒤 다시 시도해주세요.' });
       return;
     }
-    connect({ connector: connectors[0] }, { onError: (error) => alert(getConnectErrorMessage(error.message)) });
+    connect({ connector: connectors[0] }, { onError: (error) => showNotice({ type: 'error', message: getConnectErrorMessage(error.message) }) });
   };
 
   const handleFaucet = async () => {
@@ -79,9 +113,10 @@ export function WalletConnect() {
       });
       if (!response.ok) throw new Error(await response.text());
       await refetch();
-      alert('테스트용 ETH와 mUSD가 충전되었습니다.');
+      notifyChainStateChanged();
+      showNotice({ type: 'success', message: '테스트용 ETH와 mUSD가 충전되었습니다.' });
     } catch (error) {
-      alert(`충전에 실패했습니다: ${error}`);
+      showNotice({ type: 'error', message: `테스트 자산 충전에 실패했습니다: ${error instanceof Error ? error.message : String(error)}` });
     } finally {
       setIsFunding(false);
     }
@@ -96,7 +131,7 @@ export function WalletConnect() {
 
   if (mounted && isConnected && address) {
     return (
-      <div className="relative" ref={containerRef}>
+      <><div className="relative" ref={containerRef}>
         <button
           type="button"
           onClick={() => setIsOpen((open) => !open)}
@@ -139,16 +174,16 @@ export function WalletConnect() {
             </div>
           </div>
         )}
-      </div>
+      </div><WalletToast notice={notice} /></>
     );
   }
 
   return (
-    <div className="flex flex-col items-end">
+    <><div className="flex flex-col items-end">
       <button type="button" onClick={handleConnect} disabled={!mounted || isConnectPending} className="flex items-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
         <Wallet className="h-4 w-4" />{isConnectPending ? '연결 승인 대기 중' : '지갑 연결'}
       </button>
       {connectError && <span className="mt-1.5 max-w-xs text-right text-[11px] text-red-600">{getConnectErrorMessage(connectError.message)}</span>}
-    </div>
+    </div><WalletToast notice={notice} /></>
   );
 }

@@ -10,6 +10,7 @@ import { useActiveContracts } from '../hooks/useActiveContracts';
 import DemoDeploymentFactoryABI from '../generated/contracts/DemoDeploymentFactory.abi.json';
 import MockSettlementTokenABI from '../generated/contracts/MockSettlementToken.abi.json';
 import RevenueBridgeABI from '../generated/contracts/RevenueBridge.abi.json';
+import { CHAIN_STATE_CHANGED_EVENT, notifyChainStateChanged } from '../lib/chain-state';
 
 const OFFERING_ID = BigInt(3);
 const GROSS_REVENUE = parseUnits('1000', 6);
@@ -143,6 +144,17 @@ export function BaseSepoliaDemoDeck() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!isFactoryOwner) return;
+    const handleStateChange = () => void refresh();
+    const poller = window.setInterval(handleStateChange, 5000);
+    window.addEventListener(CHAIN_STATE_CHANGED_EVENT, handleStateChange);
+    return () => {
+      window.clearInterval(poller);
+      window.removeEventListener(CHAIN_STATE_CHANGED_EVENT, handleStateChange);
+    };
+  }, [isFactoryOwner, refresh]);
+
   const action = useMemo(() => state?.investorAllowed ? nextAction(state) : null, [state]);
   const nextPeriodEnd = state && Number(state.nextPeriodIndex) < state.periodEnds.length
     ? Number(state.periodEnds[Number(state.nextPeriodIndex)])
@@ -186,6 +198,7 @@ export function BaseSepoliaDemoDeck() {
       }
       await queryClient.invalidateQueries();
       await refresh();
+      notifyChainStateChanged();
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
       setError(message.toLowerCase().includes('user rejected') ? '지갑에서 트랜잭션 요청이 취소되었습니다.' : message);
@@ -205,6 +218,7 @@ export function BaseSepoliaDemoDeck() {
       setState(null);
       await refetchActiveDeployment();
       await queryClient.invalidateQueries();
+      notifyChainStateChanged();
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
       setError(message.toLowerCase().includes('user rejected') ? '지갑에서 트랜잭션 요청이 취소되었습니다.' : message);

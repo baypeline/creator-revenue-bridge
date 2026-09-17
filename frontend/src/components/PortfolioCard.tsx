@@ -8,7 +8,9 @@ import { OfferingResponse } from '../types/product';
 import { formatUnits } from 'viem';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatNumber } from '../lib/format';
+import { notifyChainStateChanged } from '../lib/chain-state';
 
 interface PortfolioCardProps {
   product: OfferingResponse;
@@ -16,6 +18,7 @@ interface PortfolioCardProps {
 }
 
 export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
+  const queryClient = useQueryClient();
   const { address } = useAccount();
   const { addresses } = useActiveContracts();
 
@@ -27,6 +30,7 @@ export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
     args: address ? [BigInt(product.offeringId), address] : undefined,
     query: {
       enabled: !!address,
+      refetchInterval: 5000,
     }
   });
   const { data: offeringData } = useReadContract({
@@ -34,6 +38,7 @@ export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
     abi: RevenueBridgeABI,
     functionName: 'getOffering',
     args: [BigInt(product.offeringId)],
+    query: { refetchInterval: 5000 },
   });
 
   // Write claim transaction
@@ -45,9 +50,11 @@ export function PortfolioCard({ product, investedUnits }: PortfolioCardProps) {
 
   useEffect(() => {
     if (isConfirmed) {
-      refetchClaimable();
+      void Promise.all([refetchClaimable(), queryClient.invalidateQueries()]).then(() => {
+        notifyChainStateChanged();
+      });
     }
-  }, [isConfirmed, refetchClaimable]);
+  }, [isConfirmed, queryClient, refetchClaimable]);
 
   const unitPriceRaw = BigInt(product.terms.unitPrice.raw);
   const investedAmount = investedUnits * unitPriceRaw;
